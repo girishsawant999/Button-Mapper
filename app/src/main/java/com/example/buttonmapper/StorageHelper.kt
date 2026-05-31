@@ -7,12 +7,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class KeyMapping(val keyCode: Int, val action: String)
-data class ScheduledAlarm(val id: String, val hour: Int, val minute: Int, val action: String, val value: Int)
+data class ScheduledTask(val id: String, val dayOfWeek: Int, val hour: Int, val action: String, val value: Int)
 
 object StorageHelper {
     private const val PREFS_NAME = "button_mapper_prefs"
     private const val KEY_MAPPINGS = "key_mappings"
-    private const val SCHEDULED_ALARMS = "scheduled_alarms"
+    private const val SCHEDULED_TASKS = "scheduled_tasks"
 
     fun getPrefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -37,29 +37,29 @@ object StorageHelper {
         }
     }
 
-    fun saveScheduledAlarms(context: Context, alarms: List<ScheduledAlarm>) {
+    fun saveScheduledTasks(context: Context, tasks: List<ScheduledTask>) {
         val arr = JSONArray()
-        alarms.forEach {
+        tasks.forEach {
             val obj = JSONObject()
             obj.put("id", it.id)
+            obj.put("dayOfWeek", it.dayOfWeek)
             obj.put("hour", it.hour)
-            obj.put("minute", it.minute)
             obj.put("action", it.action)
             obj.put("value", it.value)
             arr.put(obj)
         }
-        getPrefs(context).edit().putString(SCHEDULED_ALARMS, arr.toString()).apply()
+        getPrefs(context).edit().putString(SCHEDULED_TASKS, arr.toString()).apply()
     }
 
-    fun loadScheduledAlarms(context: Context): List<ScheduledAlarm> {
-        val str = getPrefs(context).getString(SCHEDULED_ALARMS, null) ?: return emptyList()
+    fun loadScheduledTasks(context: Context): List<ScheduledTask> {
+        val str = getPrefs(context).getString(SCHEDULED_TASKS, null) ?: return emptyList()
         val arr = JSONArray(str)
         return List(arr.length()) {
             val obj = arr.getJSONObject(it)
-            ScheduledAlarm(
+            ScheduledTask(
                 obj.getString("id"),
+                obj.getInt("dayOfWeek"),
                 obj.getInt("hour"),
-                obj.getInt("minute"),
                 obj.getString("action"),
                 obj.getInt("value")
             )

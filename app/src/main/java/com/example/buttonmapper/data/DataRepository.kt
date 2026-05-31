@@ -3,7 +3,7 @@ package com.example.buttonmapper.data
 
 import android.content.Context
 import com.example.buttonmapper.KeyMapping
-import com.example.buttonmapper.ScheduledAlarm
+import com.example.buttonmapper.ScheduledTask
 import com.example.buttonmapper.StorageHelper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.flow
 interface DataRepository {
   fun getKeyMappings(context: Context): Flow<List<KeyMapping>>
   fun setKeyMappings(context: Context, mappings: List<KeyMapping>)
-  fun getScheduledAlarms(context: Context): Flow<List<ScheduledAlarm>>
-  fun setScheduledAlarms(context: Context, alarms: List<ScheduledAlarm>)
+  fun getScheduledTasks(context: Context): Flow<List<ScheduledTask>>
+  fun setScheduledTasks(context: Context, tasks: List<ScheduledTask>)
 }
 
 class DefaultDataRepository : DataRepository {
@@ -25,11 +25,11 @@ class DefaultDataRepository : DataRepository {
     StorageHelper.saveKeyMappings(context, mappings)
   }
 
-  override fun getScheduledAlarms(context: Context): Flow<List<ScheduledAlarm>> = flow {
-    emit(StorageHelper.loadScheduledAlarms(context))
+  override fun getScheduledTasks(context: Context): Flow<List<ScheduledTask>> = flow {
+    emit(StorageHelper.loadScheduledTasks(context))
   }
 
-  override fun setScheduledAlarms(context: Context, alarms: List<ScheduledAlarm>) {
-    StorageHelper.saveScheduledAlarms(context, alarms)
+  override fun setScheduledTasks(context: Context, tasks: List<ScheduledTask>) {
+    StorageHelper.saveScheduledTasks(context, tasks)
   }
 }

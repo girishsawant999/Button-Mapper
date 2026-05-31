@@ -5,8 +5,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.buttonmapper.KeyMapping
-import com.example.buttonmapper.ScheduledAlarm
-import com.example.buttonmapper.AlarmScheduler
+import com.example.buttonmapper.ScheduledTask
+import com.example.buttonmapper.ScheduleScheduler
 import com.example.buttonmapper.data.DataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +21,7 @@ sealed interface MainScreenUiState {
   data class Error(val throwable: Throwable) : MainScreenUiState
   data class Success(
     val keyMappings: List<KeyMapping>,
-    val scheduledAlarms: List<ScheduledAlarm>
+    val scheduledTasks: List<ScheduledTask>
   ) : MainScreenUiState
 }
 
@@ -36,23 +36,25 @@ class MainScreenViewModel(
 
   fun loadData(context: Context) {
     appendLog("loadData called")
+    ScheduleScheduler.validateAndExecute(context)
+    ScheduleScheduler.startHourlyValidation(context)
     viewModelScope.launch {
       try {
         appendLog("Getting key mappings flow...")
         val mappingsFlow = dataRepository.getKeyMappings(context)
-        appendLog("Getting scheduled alarms flow...")
-        val alarmsFlow = dataRepository.getScheduledAlarms(context)
+        appendLog("Getting scheduled tasks flow...")
+        val tasksFlow = dataRepository.getScheduledTasks(context)
         appendLog("Combining flows...")
-        combine(mappingsFlow, alarmsFlow) { mList, aList ->
-          appendLog("combine emitted: ${'$'}mList, ${'$'}aList")
-          MainScreenUiState.Success(mList, aList)
+        combine(mappingsFlow, tasksFlow) { mList, tList ->
+          appendLog("combine emitted: $mList, $tList")
+          MainScreenUiState.Success(mList, tList)
         }.collect { state ->
-          appendLog("collect: ${'$'}state")
+          appendLog("collect: $state")
           _uiState.value = state
         }
       } catch (e: Exception) {
         _uiState.value = MainScreenUiState.Error(e)
-        appendLog("Error: ${'$'}{e.message}")
+        appendLog("Error: ${e.message}")
       }
     }
   }
@@ -83,35 +85,28 @@ class MainScreenViewModel(
     }
   }
 
-  fun addScheduledAlarm(context: Context, alarm: ScheduledAlarm) {
+  fun addScheduledTask(context: Context, task: ScheduledTask) {
     viewModelScope.launch {
-      val current = dataRepository.getScheduledAlarms(context).first()
-      // Filter out any alarm with the same ID to prevent duplication
-      val filtered = current.filter { it.id != alarm.id }
-      // Cancel previous system alarm if it exists
-      AlarmScheduler.cancelAlarm(context, alarm.id)
+      val current = dataRepository.getScheduledTasks(context).first()
+      // Filter out any task with the same ID to prevent duplication
+      val filtered = current.filter { it.id != task.id }
+      val updated = filtered + task
+      dataRepository.setScheduledTasks(context, updated)
       
-      val updated = filtered + alarm
-      dataRepository.setScheduledAlarms(context, updated)
-      
-      // Schedule the new alarm in system
-      AlarmScheduler.scheduleAlarm(context, alarm)
-      
-      appendLog("Added scheduled alarm: $alarm")
+      appendLog("Added scheduled task: $task")
+      ScheduleScheduler.validateAndExecute(context)
       loadData(context)
     }
   }
 
-  fun removeScheduledAlarm(context: Context, alarmId: String) {
+  fun removeScheduledTask(context: Context, taskId: String) {
     viewModelScope.launch {
-      val current = dataRepository.getScheduledAlarms(context).first()
-      val updated = current.filter { it.id != alarmId }
-      dataRepository.setScheduledAlarms(context, updated)
+      val current = dataRepository.getScheduledTasks(context).first()
+      val updated = current.filter { it.id != taskId }
+      dataRepository.setScheduledTasks(context, updated)
       
-      // Cancel the system alarm
-      AlarmScheduler.cancelAlarm(context, alarmId)
-      
-      appendLog("Removed scheduled alarm: $alarmId")
+      appendLog("Removed scheduled task: $taskId")
+      ScheduleScheduler.validateAndExecute(context)
       loadData(context)
     }
   }
@@ -121,8 +116,8 @@ class MainScreenViewModel(
     loadData(context)
   }
 
-  fun saveScheduledAlarms(context: Context, alarms: List<ScheduledAlarm>) {
-    dataRepository.setScheduledAlarms(context, alarms)
+  fun saveScheduledTasks(context: Context, tasks: List<ScheduledTask>) {
+    dataRepository.setScheduledTasks(context, tasks)
     loadData(context)
   }
 }

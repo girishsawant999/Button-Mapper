@@ -15,6 +15,7 @@ class ButtonMapperService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         keyMappings = StorageHelper.loadKeyMappings(this)
+        ScheduleScheduler.validateAndExecute(this)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {

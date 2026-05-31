@@ -47,13 +47,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.example.buttonmapper.ButtonMapperService
 import com.example.buttonmapper.KeyDetectionRegistry
 import com.example.buttonmapper.KeyMapping
-import com.example.buttonmapper.ScheduledAlarm
+import com.example.buttonmapper.ScheduledTask
 import com.example.buttonmapper.StorageHelper
 import androidx.navigation3.runtime.NavKey
 
 enum class Tab {
     KeyBindings,
-    Alarms
+    Schedules
 }
 
 @Composable
@@ -230,10 +230,10 @@ fun MainScreen(
                 )
 
                 SidebarMenuItem(
-                    text = "Alarms",
+                    text = "Schedules",
                     icon = Icons.Default.Notifications,
-                    isSelected = selectedTab == Tab.Alarms,
-                    onClick = { selectedTab = Tab.Alarms }
+                    isSelected = selectedTab == Tab.Schedules,
+                    onClick = { selectedTab = Tab.Schedules }
                 )
 
                 // Spacer to push permissions to the bottom
@@ -363,9 +363,9 @@ fun MainScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
-                            Tab.Alarms -> {
-                                AlarmsContent(
-                                    scheduledAlarms = success.scheduledAlarms,
+                            Tab.Schedules -> {
+                                SchedulesContent(
+                                    scheduledTasks = success.scheduledTasks,
                                     viewModel = viewModel,
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -524,14 +524,38 @@ fun KeyBindingsContent(
     }
 }
 
+fun getDayOfWeekLabel(day: Int): String {
+    return when (day) {
+        0 -> "Every Day"
+        java.util.Calendar.SUNDAY -> "Sunday"
+        java.util.Calendar.MONDAY -> "Monday"
+        java.util.Calendar.TUESDAY -> "Tuesday"
+        java.util.Calendar.WEDNESDAY -> "Wednesday"
+        java.util.Calendar.THURSDAY -> "Thursday"
+        java.util.Calendar.FRIDAY -> "Friday"
+        java.util.Calendar.SATURDAY -> "Saturday"
+        else -> "Unknown"
+    }
+}
+
+fun getHourLabel(hour: Int): String {
+    val ampm = if (hour >= 12) "PM" else "AM"
+    val displayHour = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    return String.format("%02d:00 (%d %s)", hour, displayHour, ampm)
+}
+
 @Composable
-fun AlarmsContent(
-    scheduledAlarms: List<ScheduledAlarm>,
+fun SchedulesContent(
+    scheduledTasks: List<ScheduledTask>,
     viewModel: MainScreenViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var showAddAlarmDialog by remember { mutableStateOf(false) }
+    var showAddScheduleDialog by remember { mutableStateOf(false) }
     val isDark = isSystemInDarkTheme()
     val textColor = if (isDark) Color.White else Color.Black
     val cardBg = if (isDark) Color(0xFF1F2937) else Color.White
@@ -548,24 +572,24 @@ fun AlarmsContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Scheduled Alarms",
+                    text = "Schedules",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
                 )
                 TvButton(
-                    onClick = { showAddAlarmDialog = true },
+                    onClick = { showAddScheduleDialog = true },
                     containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
                     focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
                     contentColor = if (isDark) Color.Black else Color.White,
                     focusedContentColor = Color.Black
                 ) {
-                    Text("Add Alarm", fontSize = 12.sp)
+                    Text("Add Schedule", fontSize = 12.sp)
                 }
             }
         }
 
-        if (scheduledAlarms.isEmpty()) {
+        if (scheduledTasks.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -573,12 +597,12 @@ fun AlarmsContent(
                     border = BorderStroke(1.dp, borderColor)
                 ) {
                     Box(modifier = Modifier.padding(24.dp), contentAlignment = Alignment.Center) {
-                        Text("No scheduled alarms configured yet.", color = Color.Gray, fontSize = 14.sp)
+                        Text("No schedules configured yet.", color = Color.Gray, fontSize = 14.sp)
                     }
                 }
             }
         } else {
-            items(scheduledAlarms) { alarm ->
+            items(scheduledTasks) { task ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = cardBg),
@@ -593,8 +617,8 @@ fun AlarmsContent(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = String.format("%02d:%02d", alarm.hour, alarm.minute),
-                                fontSize = 20.sp,
+                                text = "${getDayOfWeekLabel(task.dayOfWeek)} at ${getHourLabel(task.hour)}",
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
                             )
@@ -602,19 +626,19 @@ fun AlarmsContent(
                                 val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                                 am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
                             }
-                            val percentVal = if (alarm.action == "volume") {
-                                Math.round((alarm.value.toFloat() / maxVol) * 100)
+                            val percentVal = if (task.action == "volume") {
+                                Math.round((task.value.toFloat() / maxVol) * 100)
                             } else {
-                                Math.round((alarm.value.toFloat() / 255f) * 100)
+                                Math.round((task.value.toFloat() / 255f) * 100)
                             }
                             Text(
-                                text = "Action: ${alarm.action.replaceFirstChar { it.uppercase() }} | Value: $percentVal% (ID: ${alarm.id})",
+                                text = "Action: ${task.action.replaceFirstChar { it.uppercase() }} | Value: $percentVal% (ID: ${task.id})",
                                 fontSize = 12.sp,
                                 color = if (isDark) Color.LightGray else Color.DarkGray
                             )
                         }
                         TvButton(
-                            onClick = { viewModel.removeScheduledAlarm(context, alarm.id) },
+                            onClick = { viewModel.removeScheduledTask(context, task.id) },
                             containerColor = Color(0xFFEF4444),
                             focusedContainerColor = Color(0xFFFCA5A5),
                             contentColor = Color.White,
@@ -630,13 +654,13 @@ fun AlarmsContent(
         }
     }
 
-    if (showAddAlarmDialog) {
-        AddAlarmDialog(
-            onAdd = { id, hour, minute, action, value ->
-                viewModel.addScheduledAlarm(context, ScheduledAlarm(id, hour, minute, action, value))
-                showAddAlarmDialog = false
+    if (showAddScheduleDialog) {
+        AddScheduleDialog(
+            onAdd = { id, dayOfWeek, hour, action, value ->
+                viewModel.addScheduledTask(context, ScheduledTask(id, dayOfWeek, hour, action, value))
+                showAddScheduleDialog = false
             },
-            onDismiss = { showAddAlarmDialog = false }
+            onDismiss = { showAddScheduleDialog = false }
         )
     }
 }
@@ -971,7 +995,7 @@ fun ActionSelectorDialog(
 }
 
 @Composable
-fun AddAlarmDialog(
+fun AddScheduleDialog(
     onAdd: (String, Int, Int, String, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -980,8 +1004,26 @@ fun AddAlarmDialog(
     val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
 
     var id by remember { mutableStateOf("") }
-    var hourStr by remember { mutableStateOf("") }
-    var minuteStr by remember { mutableStateOf("") }
+    
+    val dayOptions = remember {
+        listOf(
+            0 to "Every Day",
+            java.util.Calendar.SUNDAY to "Sunday",
+            java.util.Calendar.MONDAY to "Monday",
+            java.util.Calendar.TUESDAY to "Tuesday",
+            java.util.Calendar.WEDNESDAY to "Wednesday",
+            java.util.Calendar.THURSDAY to "Thursday",
+            java.util.Calendar.FRIDAY to "Friday",
+            java.util.Calendar.SATURDAY to "Saturday"
+        )
+    }
+    var selectedDay by remember { mutableStateOf(0) }
+    var expandedDayDropdown by remember { mutableStateOf(false) }
+
+    val hourOptions = remember { (0..23).toList() }
+    var selectedHour by remember { mutableStateOf(12) } // Default 12:00 PM
+    var expandedHourDropdown by remember { mutableStateOf(false) }
+
     var action by remember { mutableStateOf("volume") }
     
     val percentOptions = remember { listOf(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100) }
@@ -990,13 +1032,13 @@ fun AddAlarmDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Scheduled Alarm", color = Color.White) },
+        title = { Text("Add Scheduled Task", color = Color.White) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = id,
                     onValueChange = { id = it },
-                    label = { Text("Unique Alarm ID") },
+                    label = { Text("Unique Schedule ID") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFFD0BCFF),
@@ -1004,31 +1046,88 @@ fun AddAlarmDialog(
                     )
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = hourStr,
-                        onValueChange = { hourStr = it },
-                        label = { Text("Hour (0-23)") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFD0BCFF),
-                            focusedLabelColor = Color(0xFFD0BCFF)
-                        )
-                    )
-                    OutlinedTextField(
-                        value = minuteStr,
-                        onValueChange = { minuteStr = it },
-                        label = { Text("Min (0-59)") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFD0BCFF),
-                            focusedLabelColor = Color(0xFFD0BCFF)
-                        )
-                    )
+                Column {
+                    Text("Day of Week", fontSize = 12.sp, color = Color.LightGray)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    val dayInteractionSource = remember { MutableInteractionSource() }
+                    val isDayFocused by dayInteractionSource.collectIsFocusedAsState()
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = dayInteractionSource,
+                                indication = null,
+                                onClick = { expandedDayDropdown = true }
+                            )
+                            .border(
+                                width = if (isDayFocused) 2.dp else 1.dp,
+                                color = if (isDayFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .background(Color(0xFF1F2937).copy(alpha = 0.5f))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = dayOptions.find { it.first == selectedDay }?.second ?: "Monday",
+                                color = Color.White,
+                                fontSize = 15.sp
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.ArrowDropDown,
+                                contentDescription = "Dropdown",
+                                tint = Color.LightGray
+                            )
+                        }
+                    }
+                }
+
+                Column {
+                    Text("Hour of Day", fontSize = 12.sp, color = Color.LightGray)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    val hourInteractionSource = remember { MutableInteractionSource() }
+                    val isHourFocused by hourInteractionSource.collectIsFocusedAsState()
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = hourInteractionSource,
+                                indication = null,
+                                onClick = { expandedHourDropdown = true }
+                            )
+                            .border(
+                                width = if (isHourFocused) 2.dp else 1.dp,
+                                color = if (isHourFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .background(Color(0xFF1F2937).copy(alpha = 0.5f))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = getHourLabel(selectedHour),
+                                color = Color.White,
+                                fontSize = 15.sp
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.ArrowDropDown,
+                                contentDescription = "Dropdown",
+                                tint = Color.LightGray
+                            )
+                        }
+                    }
                 }
 
                 Column {
@@ -1100,8 +1199,6 @@ fun AddAlarmDialog(
         confirmButton = {
             TvButton(
                 onClick = {
-                    val hour = hourStr.toIntOrNull()
-                    val minute = minuteStr.toIntOrNull()
                     val calculatedValue = if (action == "volume") {
                         Math.round(maxVolume * (selectedPercent / 100f))
                     } else {
@@ -1110,12 +1207,8 @@ fun AddAlarmDialog(
 
                     if (id.trim().isEmpty()) {
                         Toast.makeText(context, "ID cannot be empty", Toast.LENGTH_SHORT).show()
-                    } else if (hour == null || hour !in 0..23) {
-                        Toast.makeText(context, "Hour must be 0-23", Toast.LENGTH_SHORT).show()
-                    } else if (minute == null || minute !in 0..59) {
-                        Toast.makeText(context, "Minute must be 0-59", Toast.LENGTH_SHORT).show()
                     } else {
-                        onAdd(id.trim(), hour, minute, action, calculatedValue)
+                        onAdd(id.trim(), selectedDay, selectedHour, action, calculatedValue)
                     }
                 },
                 containerColor = Color(0xFFD0BCFF),
@@ -1132,6 +1225,120 @@ fun AddAlarmDialog(
             }
         }
     )
+
+    if (expandedDayDropdown) {
+        Dialog(onDismissRequest = { expandedDayDropdown = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .fillMaxHeight(0.6f),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
+                border = BorderStroke(1.dp, Color(0xFF374151)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Select Day of Week",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().weight(1f)
+                    ) {
+                        items(dayOptions) { option ->
+                            val itemInteractionSource = remember { MutableInteractionSource() }
+                            val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
+                            
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isItemFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color.Transparent)
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isItemFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable(
+                                        interactionSource = itemInteractionSource,
+                                        indication = null,
+                                        onClick = {
+                                            selectedDay = option.first
+                                            expandedDayDropdown = false
+                                        }
+                                    )
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(option.second, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (expandedHourDropdown) {
+        Dialog(onDismissRequest = { expandedHourDropdown = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .fillMaxHeight(0.6f),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
+                border = BorderStroke(1.dp, Color(0xFF374151)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Select Hour of Day",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().weight(1f)
+                    ) {
+                        items(hourOptions) { hr ->
+                            val itemInteractionSource = remember { MutableInteractionSource() }
+                            val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
+                            
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isItemFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color.Transparent)
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isItemFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable(
+                                        interactionSource = itemInteractionSource,
+                                        indication = null,
+                                        onClick = {
+                                            selectedHour = hr
+                                            expandedHourDropdown = false
+                                        }
+                                    )
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(getHourLabel(hr), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (expandedPercentDropdown) {
         Dialog(onDismissRequest = { expandedPercentDropdown = false }) {
