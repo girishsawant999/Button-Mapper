@@ -5,8 +5,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.buttonmapper.KeyMapping
-import com.example.buttonmapper.ScheduledTask
-import com.example.buttonmapper.ScheduleScheduler
 import com.example.buttonmapper.data.DataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,8 +18,7 @@ sealed interface MainScreenUiState {
   object Loading : MainScreenUiState
   data class Error(val throwable: Throwable) : MainScreenUiState
   data class Success(
-    val keyMappings: List<KeyMapping>,
-    val scheduledTasks: List<ScheduledTask>
+    val keyMappings: List<KeyMapping>
   ) : MainScreenUiState
 }
 
@@ -39,8 +36,6 @@ class MainScreenViewModel(
 
   fun loadData(context: Context) {
     appendLog("loadData called")
-    ScheduleScheduler.validateAndExecute(context)
-    ScheduleScheduler.startHourlyValidation(context)
 
     viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
       try {
@@ -64,16 +59,9 @@ class MainScreenViewModel(
     viewModelScope.launch {
       try {
         appendLog("Getting key mappings flow...")
-        val mappingsFlow = dataRepository.getKeyMappings(context)
-        appendLog("Getting scheduled tasks flow...")
-        val tasksFlow = dataRepository.getScheduledTasks(context)
-        appendLog("Combining flows...")
-        combine(mappingsFlow, tasksFlow) { mList, tList ->
-          appendLog("combine emitted: $mList, $tList")
-          MainScreenUiState.Success(mList, tList)
-        }.collect { state ->
-          appendLog("collect: $state")
-          _uiState.value = state
+        dataRepository.getKeyMappings(context).collect { mList ->
+          appendLog("collect: $mList")
+          _uiState.value = MainScreenUiState.Success(mList)
         }
       } catch (e: Exception) {
         _uiState.value = MainScreenUiState.Error(e)
@@ -108,39 +96,8 @@ class MainScreenViewModel(
     }
   }
 
-  fun addScheduledTask(context: Context, task: ScheduledTask) {
-    viewModelScope.launch {
-      val current = dataRepository.getScheduledTasks(context).first()
-      // Filter out any task with the same ID to prevent duplication
-      val filtered = current.filter { it.id != task.id }
-      val updated = filtered + task
-      dataRepository.setScheduledTasks(context, updated)
-      
-      appendLog("Added scheduled task: $task")
-      ScheduleScheduler.validateAndExecute(context)
-      loadData(context)
-    }
-  }
-
-  fun removeScheduledTask(context: Context, taskId: String) {
-    viewModelScope.launch {
-      val current = dataRepository.getScheduledTasks(context).first()
-      val updated = current.filter { it.id != taskId }
-      dataRepository.setScheduledTasks(context, updated)
-      
-      appendLog("Removed scheduled task: $taskId")
-      ScheduleScheduler.validateAndExecute(context)
-      loadData(context)
-    }
-  }
-
   fun saveKeyMappings(context: Context, mappings: List<KeyMapping>) {
     dataRepository.setKeyMappings(context, mappings)
-    loadData(context)
-  }
-
-  fun saveScheduledTasks(context: Context, tasks: List<ScheduledTask>) {
-    dataRepository.setScheduledTasks(context, tasks)
     loadData(context)
   }
 }

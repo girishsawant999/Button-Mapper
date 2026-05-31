@@ -23,7 +23,6 @@ class ButtonMapperService : AccessibilityService() {
         super.onServiceConnected()
         StorageHelper.getPrefs(this).registerOnSharedPreferenceChangeListener(prefListener)
         reloadKeyMappings()
-        ScheduleScheduler.validateAndExecute(this)
     }
 
     private fun reloadKeyMappings() {
@@ -74,8 +73,6 @@ class ButtonMapperService : AccessibilityService() {
                 }
                 "volume_up" -> adjustVolume(AudioManager.ADJUST_RAISE)
                 "volume_down" -> adjustVolume(AudioManager.ADJUST_LOWER)
-                "brightness_up" -> adjustBrightness(20)
-                "brightness_down" -> adjustBrightness(-20)
                 // Add more actions as needed
                 else -> {
                     var launchIntent = packageManager.getLaunchIntentForPackage(mapping.action)
@@ -100,15 +97,4 @@ class ButtonMapperService : AccessibilityService() {
         audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI)
     }
 
-    private fun adjustBrightness(delta: Int) {
-        try {
-            val cResolver = contentResolver
-            val cur = Settings.System.getInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, 100)
-            val newVal = (cur + delta).coerceIn(10, 255)
-            Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
-            Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, newVal)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Brightness error: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
 }

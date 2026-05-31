@@ -26,9 +26,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
@@ -51,20 +64,16 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.example.buttonmapper.ButtonMapperService
 import com.example.buttonmapper.KeyDetectionRegistry
 import com.example.buttonmapper.KeyMapping
-import com.example.buttonmapper.ScheduledTask
 import com.example.buttonmapper.StorageHelper
 import androidx.activity.compose.BackHandler
 import androidx.navigation3.runtime.NavKey
 
 enum class Tab {
-    KeyBindings,
-    Schedules
+    KeyBindings
 }
 
 sealed interface ActivePanel {
     object AddKeyMapping : ActivePanel
-    object AddSchedule : ActivePanel
-    data class EditSchedule(val task: ScheduledTask) : ActivePanel
 }
 
 @Composable
@@ -134,9 +143,6 @@ fun MainScreen(
     var isAccessibilityEnabled by remember {
         mutableStateOf(isAccessibilityServiceEnabled(context, ButtonMapperService::class.java))
     }
-    var isWriteSettingsEnabled by remember {
-        mutableStateOf(Settings.System.canWrite(context))
-    }
 
     val state by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableStateOf(Tab.KeyBindings) }
@@ -147,12 +153,10 @@ fun MainScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val enabledAcc = isAccessibilityServiceEnabled(context, ButtonMapperService::class.java)
-                val enabledWrite = Settings.System.canWrite(context)
-                if (!enabledAcc || !enabledWrite) {
+                if (!enabledAcc) {
                     showToast = true
                 }
                 isAccessibilityEnabled = enabledAcc
-                isWriteSettingsEnabled = enabledWrite
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -167,9 +171,7 @@ fun MainScreen(
 
     if (showToast) {
         val msg = when {
-            !isAccessibilityEnabled && !isWriteSettingsEnabled -> "Accessibility & Write Settings permissions are required!"
             !isAccessibilityEnabled -> "Accessibility Service permission is required!"
-            !isWriteSettingsEnabled -> "Write Settings permission is required!"
             else -> null
         }
         msg?.let {
@@ -232,7 +234,7 @@ fun MainScreen(
                             color = if (isDark) PastelPrimaryDark else PastelPrimaryLight
                         )
                         Text(
-                            text = "Native Android TV key remapping & task automation",
+                            text = "Native Android TV key remapping",
                             fontSize = 12.sp,
                             color = subtitleColor,
                             modifier = Modifier.padding(top = 4.dp)
@@ -250,12 +252,6 @@ fun MainScreen(
                     onClick = { selectedTab = Tab.KeyBindings; activePanel = null }
                 )
 
-                SidebarMenuItem(
-                    text = "Schedules",
-                    icon = Icons.Default.Notifications,
-                    isSelected = selectedTab == Tab.Schedules,
-                    onClick = { selectedTab = Tab.Schedules; activePanel = null }
-                )
 
                 // Spacer to push permissions to the bottom
                 Spacer(modifier = Modifier.weight(1f))
@@ -308,40 +304,6 @@ fun MainScreen(
                                 Text("Enable Accessibility", fontSize = 11.sp)
                             }
                         }
-
-                        // Write Settings Status
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Modify System Settings", fontSize = 12.sp, color = subtitleColor)
-                            Text(
-                                text = if (isWriteSettingsEnabled) "Granted ✓" else "Denied ✕",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isWriteSettingsEnabled) Color.Green else Color.Red
-                            )
-                        }
-                        if (!isWriteSettingsEnabled) {
-                            TvButton(
-                                onClick = {
-                                    val intent = Intent(
-                                        Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                                        Uri.parse("package:${context.packageName}")
-                                    )
-                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    context.startActivity(intent)
-                                },
-                                containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
-                                focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
-                                contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
-                                focusedContentColor = Color.Black,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Grant Write Settings", fontSize = 11.sp)
-                            }
-                        }
                     }
                 }
             }
@@ -386,15 +348,6 @@ fun MainScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
-                            Tab.Schedules -> {
-                                SchedulesContent(
-                                    scheduledTasks = success.scheduledTasks,
-                                    viewModel = viewModel,
-                                    onAddClick = { activePanel = ActivePanel.AddSchedule },
-                                    onEditClick = { task -> activePanel = ActivePanel.EditSchedule(task) },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
                         }
                     }
                 }
@@ -431,26 +384,7 @@ fun MainScreen(
                                 onCancel = { activePanel = null }
                             )
                         }
-                        is ActivePanel.AddSchedule -> {
-                            ScheduleFormPanel(
-                                taskToEdit = null,
-                                onSave = { task ->
-                                    viewModel.addScheduledTask(context, task)
-                                    activePanel = null
-                                },
-                                onCancel = { activePanel = null }
-                            )
-                        }
-                        is ActivePanel.EditSchedule -> {
-                            ScheduleFormPanel(
-                                taskToEdit = panel.task,
-                                onSave = { task ->
-                                    viewModel.addScheduledTask(context, task)
-                                    activePanel = null
-                                },
-                                onCancel = { activePanel = null }
-                            )
-                        }
+
                         null -> { /* Panel not active */ }
                     }
                 }
@@ -528,8 +462,6 @@ fun KeyBindingsContent(
                     ) {
                         val isApp = mapping.action != "volume_up" &&
                                      mapping.action != "volume_down" &&
-                                     mapping.action != "brightness_up" &&
-                                     mapping.action != "brightness_down" &&
                                      mapping.action != "launch_app"
 
                         Row(
@@ -548,8 +480,6 @@ fun KeyBindingsContent(
                                     imageVector = when(mapping.action) {
                                         "volume_up" -> Icons.Default.KeyboardArrowUp
                                         "volume_down" -> Icons.Default.KeyboardArrowDown
-                                        "brightness_up" -> Icons.Default.Add
-                                        "brightness_down" -> Icons.Default.Close
                                         else -> Icons.Default.Build
                                     },
                                     contentDescription = "System Icon",
@@ -577,8 +507,8 @@ fun KeyBindingsContent(
                             }
                         }
 
-                        TvButton(
-                            onClick = { viewModel.removeKeyMapping(context, mapping.keyCode) },
+                        TvHoldToDeleteButton(
+                            onDelete = { viewModel.removeKeyMapping(context, mapping.keyCode) },
                             containerColor = if (isDark) PastelDangerDark else PastelDangerLight,
                             focusedContainerColor = if (isDark) PastelDangerFocusedDark else PastelDangerFocusedLight,
                             contentColor = Color.White,
@@ -586,7 +516,7 @@ fun KeyBindingsContent(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             modifier = Modifier.height(36.dp)
                         ) {
-                            Text("Delete", fontSize = 12.sp)
+                            Text("Hold to Delete", fontSize = 12.sp)
                         }
                     }
                 }
@@ -595,154 +525,6 @@ fun KeyBindingsContent(
     }
 
     // Side panel handles adding now
-}
-
-fun getDayOfWeekLabel(day: Int): String {
-    return when (day) {
-        0 -> "Every Day"
-        java.util.Calendar.SUNDAY -> "Sunday"
-        java.util.Calendar.MONDAY -> "Monday"
-        java.util.Calendar.TUESDAY -> "Tuesday"
-        java.util.Calendar.WEDNESDAY -> "Wednesday"
-        java.util.Calendar.THURSDAY -> "Thursday"
-        java.util.Calendar.FRIDAY -> "Friday"
-        java.util.Calendar.SATURDAY -> "Saturday"
-        else -> "Unknown"
-    }
-}
-
-fun getHourLabel(hour: Int): String {
-    val ampm = if (hour >= 12) "PM" else "AM"
-    val displayHour = when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
-    }
-    return String.format("%02d:00 (%d %s)", hour, displayHour, ampm)
-}
-
-@Composable
-fun SchedulesContent(
-    scheduledTasks: List<ScheduledTask>,
-    viewModel: MainScreenViewModel,
-    onAddClick: () -> Unit,
-    onEditClick: (ScheduledTask) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
-    val textColor = if (isDark) Color.White else Color.Black
-    val cardBg = if (isDark) PastelCardDark else PastelCardLight
-    val borderColor = if (isDark) PastelBorderDark else PastelBorderLight
-
-    LazyColumn(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Schedules",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor
-                )
-                TvButton(
-                    onClick = onAddClick,
-                    containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
-                    focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
-                    contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
-                    focusedContentColor = Color.Black
-                ) {
-                    Text("Add Schedule", fontSize = 12.sp)
-                }
-            }
-        }
-
-        if (scheduledTasks.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = cardBg.copy(alpha = 0.5f)),
-                    border = BorderStroke(1.dp, borderColor)
-                ) {
-                    Box(modifier = Modifier.padding(24.dp), contentAlignment = Alignment.Center) {
-                        Text("No schedules configured yet.", color = Color.Gray, fontSize = 14.sp)
-                    }
-                }
-            }
-        } else {
-            items(scheduledTasks) { task ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = cardBg),
-                    border = BorderStroke(1.dp, borderColor)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${getDayOfWeekLabel(task.dayOfWeek)} at ${getHourLabel(task.hour)}",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) PastelPrimaryDark else PastelPrimaryLight
-                            )
-                            val maxVol = remember {
-                                val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                                am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-                            }
-                            val percentVal = if (task.action == "volume") {
-                                Math.round((task.value.toFloat() / maxVol) * 100)
-                            } else {
-                                Math.round((task.value.toFloat() / 255f) * 100)
-                            }
-                            Text(
-                                text = "Action: ${task.action.replaceFirstChar { it.uppercase() }} | Value: $percentVal% (ID: ${task.id})",
-                                fontSize = 12.sp,
-                                color = if (isDark) PastelSubtitleDark else PastelSubtitleLight
-                            )
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TvButton(
-                                onClick = { onEditClick(task) },
-                                containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
-                                focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
-                                contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
-                                focusedContentColor = Color.Black,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.height(36.dp)
-                            ) {
-                                Text("Edit", fontSize = 12.sp)
-                            }
-                            TvButton(
-                                onClick = { viewModel.removeScheduledTask(context, task.id) },
-                                containerColor = if (isDark) PastelDangerDark else PastelDangerLight,
-                                focusedContainerColor = if (isDark) PastelDangerFocusedDark else PastelDangerFocusedLight,
-                                contentColor = Color.White,
-                                focusedContentColor = Color.Black,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.height(36.dp)
-                            ) {
-                                Text("Delete", fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -756,6 +538,12 @@ fun AddKeyMappingPanel(
     val textColor = if (isDark) Color.White else Color.Black
     val labelColor = if (isDark) PastelSubtitleDark else PastelSubtitleLight
 
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     var keyCodeStr by remember { mutableStateOf("") }
     var action by remember { mutableStateOf("volume_up") }
     var showActionSelector by remember { mutableStateOf(false) }
@@ -763,11 +551,8 @@ fun AddKeyMappingPanel(
     val actionOptions = remember(installedApps) {
         listOf(
             "volume_up" to "Volume Up",
-            "volume_down" to "Volume Down",
-            "brightness_up" to "Brightness Up",
-            "brightness_down" to "Brightness Down",
-            "launch_app" to "Launch Button Mapper App"
-        ) + installedApps.map { it.second to "Launch: ${it.first}" }
+            "volume_down" to "Volume Down"
+        ) + installedApps.map { it.second to "${it.first}" }
     }
 
     var selectedOptionText by remember {
@@ -828,7 +613,9 @@ fun AddKeyMappingPanel(
             OutlinedTextField(
                 value = keyCodeStr,
                 onValueChange = { keyCodeStr = it },
-                label = { Text("Key Code (e.g. 24 for Vol Up)") },
+                label = { Text("Key Code") },
+                placeholder = { Text("Press key which you want to map") },
+                readOnly = true,
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
@@ -836,6 +623,7 @@ fun AddKeyMappingPanel(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .focusRequester(focusRequester)
                     .onFocusChanged {
                         isKeyCodeFieldFocused = it.isFocused
                     }
@@ -935,499 +723,18 @@ fun AddKeyMappingPanel(
 }
 
 @Composable
-fun ScheduleFormPanel(
-    taskToEdit: ScheduledTask?,
-    onSave: (ScheduledTask) -> Unit,
-    onCancel: () -> Unit
-) {
-    val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
-    val textColor = if (isDark) Color.White else Color.Black
-    val labelColor = if (isDark) PastelSubtitleDark else PastelSubtitleLight
-
-    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager }
-    val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
-
-    val isEditing = taskToEdit != null
-    val scheduleId = remember(taskToEdit) {
-        taskToEdit?.id ?: java.util.UUID.randomUUID().toString()
-    }
-
-    val dayOptions = remember {
-        listOf(
-            0 to "Every Day",
-            java.util.Calendar.SUNDAY to "Sunday",
-            java.util.Calendar.MONDAY to "Monday",
-            java.util.Calendar.TUESDAY to "Tuesday",
-            java.util.Calendar.WEDNESDAY to "Wednesday",
-            java.util.Calendar.THURSDAY to "Thursday",
-            java.util.Calendar.FRIDAY to "Friday",
-            java.util.Calendar.SATURDAY to "Saturday"
-        )
-    }
-    var selectedDay by remember(taskToEdit) { mutableStateOf(taskToEdit?.dayOfWeek ?: 0) }
-    var expandedDayDropdown by remember { mutableStateOf(false) }
-
-    val hourOptions = remember { (0..23).toList() }
-    var selectedHour by remember(taskToEdit) { mutableStateOf(taskToEdit?.hour ?: 12) }
-    var expandedHourDropdown by remember { mutableStateOf(false) }
-
-    var action by remember(taskToEdit) { mutableStateOf(taskToEdit?.action ?: "volume") }
-
-    // Convert existing absolute value back to percentage for editing
-    val initialPercent = remember(taskToEdit) {
-        if (taskToEdit != null) {
-            if (taskToEdit.action == "volume") {
-                Math.round((taskToEdit.value.toFloat() / maxVolume) * 100).coerceIn(0, 100)
-            } else {
-                Math.round((taskToEdit.value.toFloat() / 255f) * 100).coerceIn(0, 100)
-            }
-        } else 50
-    }
-
-    val percentOptions = remember { listOf(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100) }
-    var selectedPercent by remember(taskToEdit) { mutableStateOf(initialPercent) }
-    var expandedPercentDropdown by remember { mutableStateOf(false) }
-
-    // Compute preview string for the selected percentage
-    val valuePreview = remember(action, selectedPercent, maxVolume) {
-        if (action == "volume") {
-            val absVal = Math.round(maxVolume * (selectedPercent / 100f))
-            "$selectedPercent% (Volume: $absVal/$maxVolume)"
-        } else {
-            val absVal = Math.round(255 * (selectedPercent / 100f)).coerceIn(10, 255)
-            "$selectedPercent% (Brightness: $absVal/255)"
-        }
-    }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            Text(
-                text = if (isEditing) "Edit Schedule" else "Add Schedule",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isDark) PastelPrimaryDark else PastelPrimaryLight
-            )
-        }
-
-        // Day of Week selector
-        item {
-            Column {
-                Text("Day of Week", fontSize = 12.sp, color = labelColor)
-                Spacer(modifier = Modifier.height(4.dp))
-
-                val dayInteractionSource = remember { MutableInteractionSource() }
-                val isDayFocused by dayInteractionSource.collectIsFocusedAsState()
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = dayInteractionSource,
-                            indication = null,
-                            onClick = { expandedDayDropdown = true }
-                        )
-                        .border(
-                            width = if (isDayFocused) 2.dp else 1.dp,
-                            color = if (isDayFocused) {
-                                if (isDark) PastelPrimaryDark else PastelPrimaryLight
-                            } else {
-                                if (isDark) PastelBorderDark else PastelBorderLight
-                            },
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .background(
-                            if (isDark) PastelInputBgDark.copy(alpha = 0.5f)
-                            else PastelInputBgLight.copy(alpha = 0.5f)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = dayOptions.find { it.first == selectedDay }?.second ?: "Every Day",
-                            color = textColor,
-                            fontSize = 15.sp
-                        )
-                        Icon(
-                            imageVector = Icons.Filled.ArrowDropDown,
-                            contentDescription = "Dropdown",
-                            tint = labelColor
-                        )
-                    }
-                }
-            }
-        }
-
-        // Hour of Day selector
-        item {
-            Column {
-                Text("Hour of Day", fontSize = 12.sp, color = labelColor)
-                Spacer(modifier = Modifier.height(4.dp))
-
-                val hourInteractionSource = remember { MutableInteractionSource() }
-                val isHourFocused by hourInteractionSource.collectIsFocusedAsState()
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = hourInteractionSource,
-                            indication = null,
-                            onClick = { expandedHourDropdown = true }
-                        )
-                        .border(
-                            width = if (isHourFocused) 2.dp else 1.dp,
-                            color = if (isHourFocused) {
-                                if (isDark) PastelPrimaryDark else PastelPrimaryLight
-                            } else {
-                                if (isDark) PastelBorderDark else PastelBorderLight
-                            },
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .background(
-                            if (isDark) PastelInputBgDark.copy(alpha = 0.5f)
-                            else PastelInputBgLight.copy(alpha = 0.5f)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = getHourLabel(selectedHour),
-                            color = textColor,
-                            fontSize = 15.sp
-                        )
-                        Icon(
-                            imageVector = Icons.Filled.ArrowDropDown,
-                            contentDescription = "Dropdown",
-                            tint = labelColor
-                        )
-                    }
-                }
-            }
-        }
-
-        // Action Type radio buttons
-        item {
-            Column {
-                Text("Action Type", fontSize = 12.sp, color = labelColor)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = action == "volume",
-                            onClick = { action = "volume" }
-                        )
-                        Text("Volume", color = textColor, fontSize = 13.sp)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = action == "brightness",
-                            onClick = { action = "brightness" }
-                        )
-                        Text("Brightness", color = textColor, fontSize = 13.sp)
-                    }
-                }
-            }
-        }
-
-        // Level Percentage selector with value preview
-        item {
-            Column {
-                Text("Select Level", fontSize = 12.sp, color = labelColor)
-                Spacer(modifier = Modifier.height(4.dp))
-
-                val percentInteractionSource = remember { MutableInteractionSource() }
-                val isPercentFocused by percentInteractionSource.collectIsFocusedAsState()
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = percentInteractionSource,
-                            indication = null,
-                            onClick = { expandedPercentDropdown = true }
-                        )
-                        .border(
-                            width = if (isPercentFocused) 2.dp else 1.dp,
-                            color = if (isPercentFocused) {
-                                if (isDark) PastelPrimaryDark else PastelPrimaryLight
-                            } else {
-                                if (isDark) PastelBorderDark else PastelBorderLight
-                            },
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .background(
-                            if (isDark) PastelInputBgDark.copy(alpha = 0.5f)
-                            else PastelInputBgLight.copy(alpha = 0.5f)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = valuePreview,
-                            color = textColor,
-                            fontSize = 15.sp
-                        )
-                        Icon(
-                            imageVector = Icons.Filled.ArrowDropDown,
-                            contentDescription = "Dropdown",
-                            tint = labelColor
-                        )
-                    }
-                }
-            }
-        }
-
-        // Confirm / Cancel buttons
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-            ) {
-                TvTextButton(onClick = onCancel) {
-                    Text("Cancel")
-                }
-                TvButton(
-                    onClick = {
-                        val calculatedValue = if (action == "volume") {
-                            Math.round(maxVolume * (selectedPercent / 100f))
-                        } else {
-                            Math.round(255 * (selectedPercent / 100f)).coerceIn(10, 255)
-                        }
-                        onSave(ScheduledTask(scheduleId, selectedDay, selectedHour, action, calculatedValue))
-                    },
-                    containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
-                    focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
-                    contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
-                    focusedContentColor = Color.Black
-                ) {
-                    Text(if (isEditing) "Save" else "Add")
-                }
-            }
-        }
-    }
-
-    // Day selection dialog
-    if (expandedDayDropdown) {
-        Dialog(onDismissRequest = { expandedDayDropdown = false }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
-                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Select Day of Week",
-                        color = textColor,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().weight(1f)
-                    ) {
-                        items(dayOptions) { option ->
-                            val itemInteractionSource = remember { MutableInteractionSource() }
-                            val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        if (isItemFocused) PastelPrimaryDark.copy(alpha = 0.25f) else Color.Transparent
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isItemFocused) PastelPrimaryDark else {
-                                            if (isDark) PastelBorderDark else PastelBorderLight
-                                        },
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable(
-                                        interactionSource = itemInteractionSource,
-                                        indication = null,
-                                        onClick = {
-                                            selectedDay = option.first
-                                            expandedDayDropdown = false
-                                        }
-                                    )
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(option.second, color = textColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Hour selection dialog
-    if (expandedHourDropdown) {
-        Dialog(onDismissRequest = { expandedHourDropdown = false }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
-                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Select Hour of Day",
-                        color = textColor,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().weight(1f)
-                    ) {
-                        items(hourOptions) { hr ->
-                            val itemInteractionSource = remember { MutableInteractionSource() }
-                            val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        if (isItemFocused) PastelPrimaryDark.copy(alpha = 0.25f) else Color.Transparent
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isItemFocused) PastelPrimaryDark else {
-                                            if (isDark) PastelBorderDark else PastelBorderLight
-                                        },
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable(
-                                        interactionSource = itemInteractionSource,
-                                        indication = null,
-                                        onClick = {
-                                            selectedHour = hr
-                                            expandedHourDropdown = false
-                                        }
-                                    )
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(getHourLabel(hr), color = textColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Percentage selection dialog
-    if (expandedPercentDropdown) {
-        Dialog(onDismissRequest = { expandedPercentDropdown = false }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
-                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Select Percentage",
-                        color = textColor,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().weight(1f)
-                    ) {
-                        items(percentOptions) { pct ->
-                            val itemInteractionSource = remember { MutableInteractionSource() }
-                            val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-                            // Preview text for each option in the dropdown
-                            val optionPreview = if (action == "volume") {
-                                val absVal = Math.round(maxVolume * (pct / 100f))
-                                "$pct% (Volume: $absVal/$maxVolume)"
-                            } else {
-                                val absVal = Math.round(255 * (pct / 100f)).coerceIn(10, 255)
-                                "$pct% (Brightness: $absVal/255)"
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        if (isItemFocused) PastelPrimaryDark.copy(alpha = 0.25f) else Color.Transparent
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isItemFocused) PastelPrimaryDark else {
-                                            if (isDark) PastelBorderDark else PastelBorderLight
-                                        },
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable(
-                                        interactionSource = itemInteractionSource,
-                                        indication = null,
-                                        onClick = {
-                                            selectedPercent = pct
-                                            expandedPercentDropdown = false
-                                        }
-                                    )
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(optionPreview, color = textColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun AddKeyMappingDialog(
     installedApps: List<Pair<String, String>>,
     onAdd: (Int, String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     var keyCodeStr by remember { mutableStateOf("") }
     var action by remember { mutableStateOf("volume_up") }
     var showActionSelector by remember { mutableStateOf(false) }
@@ -1435,11 +742,8 @@ fun AddKeyMappingDialog(
     val actionOptions = remember(installedApps) {
         listOf(
             "volume_up" to "Volume Up",
-            "volume_down" to "Volume Down",
-            "brightness_up" to "Brightness Up",
-            "brightness_down" to "Brightness Down",
-            "launch_app" to "Launch Button Mapper App"
-        ) + installedApps.map { it.second to "Launch: ${it.first}" }
+            "volume_down" to "Volume Down"
+        ) + installedApps.map { it.second to "${it.first}" }
     }
 
     var selectedOptionText by remember {
@@ -1487,7 +791,9 @@ fun AddKeyMappingDialog(
                 OutlinedTextField(
                     value = keyCodeStr,
                     onValueChange = { keyCodeStr = it },
-                    label = { Text("Key Code (e.g. 24 for Vol Up)") },
+                    label = { Text("Key Code") },
+                    placeholder = { Text("Press key which you want to map") },
+                    readOnly = true,
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = PastelPrimaryDark,
@@ -1495,6 +801,7 @@ fun AddKeyMappingDialog(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(focusRequester)
                         .onFocusChanged {
                             isKeyCodeFieldFocused = it.isFocused
                         }
@@ -1651,8 +958,6 @@ fun ActionSelectorDialog(
                                 
                                 val isApp = option.first != "volume_up" &&
                                              option.first != "volume_down" &&
-                                             option.first != "brightness_up" &&
-                                             option.first != "brightness_down" &&
                                              option.first != "launch_app"
                                              
                                 Row(
@@ -1685,8 +990,6 @@ fun ActionSelectorDialog(
                                             imageVector = when(option.first) {
                                                 "volume_up" -> Icons.Default.KeyboardArrowUp
                                                 "volume_down" -> Icons.Default.KeyboardArrowDown
-                                                "brightness_up" -> Icons.Default.Add
-                                                "brightness_down" -> Icons.Default.Close
                                                 else -> Icons.Default.Build
                                             },
                                             contentDescription = "System Icon",
@@ -1726,420 +1029,6 @@ fun ActionSelectorDialog(
                 ) {
                     TvTextButton(onClick = onDismiss) {
                         Text("Cancel")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun AddScheduleDialog(
-    onAdd: (String, Int, Int, String, Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager }
-    val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
-
-    var id by remember { mutableStateOf("") }
-    
-    val dayOptions = remember {
-        listOf(
-            0 to "Every Day",
-            java.util.Calendar.SUNDAY to "Sunday",
-            java.util.Calendar.MONDAY to "Monday",
-            java.util.Calendar.TUESDAY to "Tuesday",
-            java.util.Calendar.WEDNESDAY to "Wednesday",
-            java.util.Calendar.THURSDAY to "Thursday",
-            java.util.Calendar.FRIDAY to "Friday",
-            java.util.Calendar.SATURDAY to "Saturday"
-        )
-    }
-    var selectedDay by remember { mutableStateOf(0) }
-    var expandedDayDropdown by remember { mutableStateOf(false) }
-
-    val hourOptions = remember { (0..23).toList() }
-    var selectedHour by remember { mutableStateOf(12) } // Default 12:00 PM
-    var expandedHourDropdown by remember { mutableStateOf(false) }
-
-    var action by remember { mutableStateOf("volume") }
-    
-    val percentOptions = remember { listOf(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100) }
-    var selectedPercent by remember { mutableStateOf(50) } // Default 50%
-    var expandedPercentDropdown by remember { mutableStateOf(false) }
-
-    val isDark = isSystemInDarkTheme()
-    val titleColor = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
-    val labelColor = if (isDark) PastelSubtitleDark else PastelSubtitleLight
-    val textColor = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
-    val dropdownBg = if (isDark) PastelInputBgDark else PastelInputBgLight
-    val dropdownText = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
-    val iconTint = if (isDark) PastelSubtitleDark else PastelSubtitleLight
-    val buttonContainer = if (isDark) PastelPrimaryDark else PastelPrimaryLight
-    val buttonFocusedContainer = if (isDark) PastelOnPrimaryLight else PastelPrimaryDark
-    val buttonContent = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight
-    val buttonFocusedContent = if (isDark) PastelPrimaryDark else PastelOnPrimaryDark
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Scheduled Task", color = titleColor) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = id,
-                    onValueChange = { id = it },
-                    label = { Text("Unique Schedule ID", color = labelColor) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PastelPrimaryDark,
-                        focusedLabelColor = PastelPrimaryDark,
-                        unfocusedLabelColor = labelColor,
-                        unfocusedBorderColor = PastelBorderDark
-                    )
-                )
-
-                Column {
-                    Text("Day of Week", fontSize = 12.sp, color = labelColor)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    val dayInteractionSource = remember { MutableInteractionSource() }
-                    val isDayFocused by dayInteractionSource.collectIsFocusedAsState()
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                interactionSource = dayInteractionSource,
-                                indication = null,
-                                onClick = { expandedDayDropdown = true }
-                            )
-                            .border(
-                                width = if (isDayFocused) 2.dp else 1.dp,
-                                color = if (isDayFocused) PastelPrimaryDark else PastelBorderDark,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .background(dropdownBg.copy(alpha = 0.5f))
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = dayOptions.find { it.first == selectedDay }?.second ?: "Monday",
-                                color = dropdownText,
-                                fontSize = 15.sp
-                            )
-                            Icon(
-                                imageVector = Icons.Filled.ArrowDropDown,
-                                contentDescription = "Dropdown",
-                                tint = iconTint
-                            )
-                        }
-                    }
-                }
-
-                Column {
-                    Text("Hour of Day", fontSize = 12.sp, color = labelColor)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    val hourInteractionSource = remember { MutableInteractionSource() }
-                    val isHourFocused by hourInteractionSource.collectIsFocusedAsState()
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                interactionSource = hourInteractionSource,
-                                indication = null,
-                                onClick = { expandedHourDropdown = true }
-                            )
-                            .border(
-                                width = if (isHourFocused) 2.dp else 1.dp,
-                                color = if (isHourFocused) PastelPrimaryDark else PastelBorderDark,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .background(dropdownBg.copy(alpha = 0.5f))
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = getHourLabel(selectedHour),
-                                color = dropdownText,
-                                fontSize = 15.sp
-                            )
-                            Icon(
-                                imageVector = Icons.Filled.ArrowDropDown,
-                                contentDescription = "Dropdown",
-                                tint = iconTint
-                            )
-                        }
-                    }
-                }
-
-                Column {
-                    Text("Action Type", fontSize = 12.sp, color = labelColor)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = action == "volume",
-                                onClick = { action = "volume" }
-                            )
-                            Text("Volume", color = textColor, fontSize = 13.sp)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(
-                                selected = action == "brightness",
-                                onClick = { action = "brightness" }
-                            )
-                            Text("Brightness", color = textColor, fontSize = 13.sp)
-                        }
-                    }
-                }
-
-                Column {
-                    Text("Select Level (Percentage)", fontSize = 12.sp, color = labelColor)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    val interactionSource = remember { MutableInteractionSource() }
-                    val isFocused by interactionSource.collectIsFocusedAsState()
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null,
-                                onClick = { expandedPercentDropdown = true }
-                            )
-                            .border(
-                                width = if (isFocused) 2.dp else 1.dp,
-                                color = if (isFocused) PastelPrimaryDark else PastelBorderDark,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .background((if (isDark) PastelCardDark else PastelCardLight).copy(alpha = 0.5f))
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "$selectedPercent%",
-                                color = dropdownText,
-                                fontSize = 15.sp
-                            )
-                            Icon(
-                                imageVector = Icons.Filled.ArrowDropDown,
-                                contentDescription = "Dropdown",
-                                tint = iconTint
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TvButton(
-                onClick = {
-                    val calculatedValue = if (action == "volume") {
-                        Math.round(maxVolume * (selectedPercent / 100f))
-                    } else {
-                        Math.round(255 * (selectedPercent / 100f)).coerceIn(10, 255)
-                    }
-                    if (id.trim().isEmpty()) {
-                        Toast.makeText(context, "ID cannot be empty", Toast.LENGTH_SHORT).show()
-                    } else {
-                        onAdd(id.trim(), selectedDay, selectedHour, action, calculatedValue)
-                    }
-                },
-                containerColor = buttonContainer,
-                focusedContainerColor = buttonFocusedContainer,
-                contentColor = buttonContent,
-                focusedContentColor = buttonFocusedContent
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TvTextButton(onClick = onDismiss) {
-                Text("Cancel", color = labelColor)
-            }
-        }
-    )
-
-    if (expandedDayDropdown) {
-        Dialog(onDismissRequest = { expandedDayDropdown = false }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
-                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Select Day of Week",
-                        color = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().weight(1f)
-                    ) {
-                        items(dayOptions) { option ->
-                            val itemInteractionSource = remember { MutableInteractionSource() }
-                            val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-                            val itemBg = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight).copy(alpha = 0.25f) else Color.Transparent
-                            val itemBorder = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight) else (if (isDark) PastelBorderDark else PastelBorderLight)
-                            val itemText = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(itemBg)
-                                    .border(
-                                        width = 1.dp,
-                                        color = itemBorder,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable(
-                                        interactionSource = itemInteractionSource,
-                                        indication = null,
-                                        onClick = {
-                                            selectedDay = option.first
-                                            expandedDayDropdown = false
-                                        }
-                                    )
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(option.second, color = itemText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (expandedHourDropdown) {
-        Dialog(onDismissRequest = { expandedHourDropdown = false }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
-                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Select Hour of Day",
-                        color = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().weight(1f)
-                    ) {
-                        items(hourOptions) { hr ->
-                            val itemInteractionSource = remember { MutableInteractionSource() }
-                            val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-                            val itemBg = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight).copy(alpha = 0.25f) else Color.Transparent
-                            val itemBorder = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight) else (if (isDark) PastelBorderDark else PastelBorderLight)
-                            val itemText = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(itemBg)
-                                    .border(
-                                        width = 1.dp,
-                                        color = itemBorder,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable(
-                                        interactionSource = itemInteractionSource,
-                                        indication = null,
-                                        onClick = {
-                                            selectedHour = hr
-                                            expandedHourDropdown = false
-                                        }
-                                    )
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(getHourLabel(hr), color = itemText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (expandedPercentDropdown) {
-        Dialog(onDismissRequest = { expandedPercentDropdown = false }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
-                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Select Percentage",
-                        color = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().weight(1f)
-                    ) {
-                        items(percentOptions) { pct ->
-                            val itemInteractionSource = remember { MutableInteractionSource() }
-                            val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-                            val itemBg = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight).copy(alpha = 0.25f) else Color.Transparent
-                            val itemBorder = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight) else (if (isDark) PastelBorderDark else PastelBorderLight)
-                            val itemText = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(itemBg)
-                                    .border(
-                                        width = 1.dp,
-                                        color = itemBorder,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable(
-                                        interactionSource = itemInteractionSource,
-                                        indication = null,
-                                        onClick = {
-                                            selectedPercent = pct
-                                            expandedPercentDropdown = false
-                                        }
-                                    )
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("$pct%", color = itemText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
                     }
                 }
             }
@@ -2203,6 +1092,91 @@ fun TvButton(
             contentColor = if (isFocused) focusedContentColor else contentColor
         ),
         modifier = modifier
+    ) {
+        content()
+    }
+}
+
+@Composable
+fun TvHoldToDeleteButton(
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = PastelCardDark,
+    focusedContainerColor: Color = PastelPrimaryDark,
+    contentColor: Color = Color.White,
+    focusedContentColor: Color = Color.Black,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    shape: androidx.compose.ui.graphics.Shape = ButtonDefaults.shape,
+    content: @Composable RowScope.() -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val progress = remember { Animatable(0f) }
+
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1000, easing = LinearEasing)
+            )
+            if (progress.value >= 1f) {
+                onDelete()
+                progress.snapTo(0f)
+            }
+        } else {
+            progress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 150, easing = LinearEasing)
+            )
+        }
+    }
+
+    Button(
+        onClick = {}, // Handled by hold gesture
+        interactionSource = interactionSource,
+        contentPadding = contentPadding,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isFocused) focusedContainerColor else containerColor,
+            contentColor = if (isFocused) focusedContentColor else contentColor
+        ),
+        shape = shape,
+        modifier = modifier
+            .clip(shape)
+            .drawWithContent {
+                // Draw the actual content (text)
+                drawContent()
+                
+                // Draw red progress line at the bottom
+                if (progress.value > 0f) {
+                    val lineHeight = 3.dp.toPx()
+                    val fillWidth = size.width * progress.value
+                    
+                    val outline = shape.createOutline(size, layoutDirection, this)
+                    val clipPath = when (outline) {
+                        is Outline.Rectangle -> {
+                            Path().apply {
+                                addRect(outline.rect)
+                            }
+                        }
+                        is Outline.Rounded -> {
+                            Path().apply {
+                                addRoundRect(outline.roundRect)
+                            }
+                        }
+                        is Outline.Generic -> outline.path
+                    }
+                    
+                    clipPath(clipPath) {
+                        drawRect(
+                            color = Color(0xFFE53935), // Vibrant red progress line
+                            topLeft = Offset(x = 0f, y = size.height - lineHeight),
+                            size = Size(width = fillWidth, height = lineHeight)
+                        )
+                    }
+                }
+            }
     ) {
         content()
     }
