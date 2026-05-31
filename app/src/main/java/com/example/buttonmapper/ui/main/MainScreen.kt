@@ -1133,52 +1133,59 @@ fun TvHoldToDeleteButton(
         }
     }
 
-    Button(
-        onClick = {}, // Handled by hold gesture
-        interactionSource = interactionSource,
-        contentPadding = contentPadding,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isFocused) focusedContainerColor else containerColor,
-            contentColor = if (isFocused) focusedContentColor else contentColor
-        ),
-        shape = shape,
-        modifier = modifier
-            .clip(shape)
-            .drawWithContent {
-                // Draw the actual content (text)
-                drawContent()
-                
-                // Draw red progress line at the bottom
-                if (progress.value > 0f) {
-                    val lineHeight = 3.dp.toPx()
-                    val fillWidth = size.width * progress.value
-                    
-                    val outline = shape.createOutline(size, layoutDirection, this)
-                    val clipPath = when (outline) {
-                        is Outline.Rectangle -> {
-                            Path().apply {
-                                addRect(outline.rect)
-                            }
-                        }
-                        is Outline.Rounded -> {
-                            Path().apply {
-                                addRoundRect(outline.roundRect)
-                            }
-                        }
-                        is Outline.Generic -> outline.path
-                    }
-                    
-                    clipPath(clipPath) {
-                        drawRect(
-                            color = Color(0xFFE53935), // Vibrant red progress line
-                            topLeft = Offset(x = 0f, y = size.height - lineHeight),
-                            size = Size(width = fillWidth, height = lineHeight)
-                        )
-                    }
-                }
-            }
+    CompositionLocalProvider(
+        LocalMinimumInteractiveComponentSize provides androidx.compose.ui.unit.Dp.Unspecified
     ) {
-        content()
+        Button(
+            onClick = {}, // Handled by hold gesture
+            interactionSource = interactionSource,
+            contentPadding = contentPadding,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isPressed) {
+                    (if (isFocused) focusedContainerColor else containerColor).copy(alpha = 0.1f)
+                } else {
+                    if (isFocused) focusedContainerColor else containerColor
+                },
+                contentColor = if (isFocused) focusedContentColor else contentColor
+            ),
+            shape = shape,
+            modifier = modifier
+                .clip(shape)
+                .drawWithContent {
+                    // Draw red progress fill covering the entire height of the button
+                    if (progress.value > 0f) {
+                        val fillWidth = size.width * progress.value
+                        
+                        val outline = shape.createOutline(size, layoutDirection, this)
+                        val clipPath = when (outline) {
+                            is Outline.Rectangle -> {
+                                Path().apply {
+                                    addRect(outline.rect)
+                                }
+                            }
+                            is Outline.Rounded -> {
+                                Path().apply {
+                                    addRoundRect(outline.roundRect)
+                                }
+                            }
+                            is Outline.Generic -> outline.path
+                        }
+                        
+                        clipPath(clipPath) {
+                            drawRect(
+                                color = Color(0xFFE53935), // Vibrant red progress overlay
+                                topLeft = Offset(0f, 0f),
+                                size = Size(width = fillWidth, height = size.height)
+                            )
+                        }
+                    }
+                    
+                    // Draw the actual content (text) on top of the red overlay
+                    drawContent()
+                }
+        ) {
+            content()
+        }
     }
 }
 
