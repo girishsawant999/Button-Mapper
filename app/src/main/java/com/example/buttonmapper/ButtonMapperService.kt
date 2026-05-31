@@ -46,6 +46,9 @@ class ButtonMapperService : AccessibilityService() {
         val currentMappings = StorageHelper.loadKeyMappings(this)
         val mapping = currentMappings.find { it.keyCode == event.keyCode }
         if (mapping != null) {
+            val label = StorageHelper.getActionLabel(this, mapping.action)
+            Toast.makeText(this, "Executing mapping: $label", Toast.LENGTH_SHORT).show()
+            
             when (mapping.action) {
                 "launch_app" -> {
                     val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
@@ -66,7 +69,7 @@ class ButtonMapperService : AccessibilityService() {
                         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(launchIntent)
                     } else {
-                        Toast.makeText(this, "Action: ${mapping.action}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Action: ${mapping.action} not found", Toast.LENGTH_SHORT).show()
                     }
                 }
             }

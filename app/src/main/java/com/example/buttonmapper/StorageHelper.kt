@@ -65,4 +65,23 @@ object StorageHelper {
             )
         }
     }
+
+    fun getActionLabel(context: Context, action: String): String {
+        return when (action) {
+            "volume_up" -> "Volume Up"
+            "volume_down" -> "Volume Down"
+            "brightness_up" -> "Brightness Up"
+            "brightness_down" -> "Brightness Down"
+            "launch_app" -> "Launch Button Mapper App"
+            else -> {
+                val pm = context.packageManager
+                try {
+                    val info = pm.getApplicationInfo(action, 0)
+                    pm.getApplicationLabel(info).toString()
+                } catch (e: Exception) {
+                    action
+                }
+            }
+        }
+    }
 }

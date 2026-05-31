@@ -48,6 +48,7 @@ import com.example.buttonmapper.ButtonMapperService
 import com.example.buttonmapper.KeyDetectionRegistry
 import com.example.buttonmapper.KeyMapping
 import com.example.buttonmapper.ScheduledAlarm
+import com.example.buttonmapper.StorageHelper
 import androidx.navigation3.runtime.NavKey
 
 enum class Tab {
@@ -486,7 +487,7 @@ fun KeyBindingsContent(
                                     color = textColor
                                 )
                                 Text(
-                                    text = "Action: ${getActionLabel(context, mapping.action)}",
+                                    text = "Action: ${StorageHelper.getActionLabel(context, mapping.action)}",
                                     fontSize = 12.sp,
                                     color = if (isDark) Color.LightGray else Color.DarkGray,
                                     maxLines = 1,
@@ -1274,24 +1275,6 @@ fun TvTextButton(
     }
 }
 
-fun getActionLabel(context: Context, action: String): String {
-    return when (action) {
-        "volume_up" -> "Volume Up"
-        "volume_down" -> "Volume Down"
-        "brightness_up" -> "Brightness Up"
-        "brightness_down" -> "Brightness Down"
-        "launch_app" -> "Launch Button Mapper App"
-        else -> {
-            val pm = context.packageManager
-            try {
-                val info = pm.getApplicationInfo(action, 0)
-                pm.getApplicationLabel(info).toString()
-            } catch (e: Exception) {
-                action
-            }
-        }
-    }
-}
 
 fun isAccessibilityServiceEnabled(
     context: Context,
