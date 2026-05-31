@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ButtonMapper</string>
+    <string name="accessibility_service_description">Allows remapping remote buttons and scheduling actions.</string>
+</resources>
