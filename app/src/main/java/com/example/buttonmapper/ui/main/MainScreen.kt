@@ -53,6 +53,7 @@ import com.example.buttonmapper.KeyDetectionRegistry
 import com.example.buttonmapper.KeyMapping
 import com.example.buttonmapper.ScheduledTask
 import com.example.buttonmapper.StorageHelper
+import androidx.activity.compose.BackHandler
 import androidx.navigation3.runtime.NavKey
 
 enum class Tab {
@@ -177,6 +178,12 @@ fun MainScreen(
         showToast = false
     }
 
+    var isPanelInputFocused by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = activePanel != null && !isPanelInputFocused) {
+        activePanel = null
+    }
+
     val isDark = isSystemInDarkTheme()
     val backgroundGradient = Brush.verticalGradient(
         colors = if (isDark) {
@@ -198,21 +205,20 @@ fun MainScreen(
             .padding(16.dp)
     ) {
         val isPanelOpen = activePanel != null
-        val sidebarWeight = if (isPanelOpen) 0.25f else 0.35f
-        val contentWeight = if (isPanelOpen) 0.40f else 0.65f
 
         Row(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Left Panel (Sidebar): Header, Menu Items, Permissions (Bottom)
-            Column(
-                modifier = Modifier
-                    .weight(sidebarWeight)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Header Card
+            if (!isPanelOpen) {
+                Column(
+                    modifier = Modifier
+                        .weight(0.35f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Header Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = headerCardBg),
@@ -339,11 +345,12 @@ fun MainScreen(
                     }
                 }
             }
+            } // Close if (!isPanelOpen)
 
             // Center Panel: Content switching based on selected tab
             Column(
                 modifier = Modifier
-                    .weight(contentWeight)
+                    .weight(if (isPanelOpen) 1f else 0.65f)
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -402,7 +409,10 @@ fun MainScreen(
                 Card(
                     modifier = Modifier
                         .width(380.dp)
-                        .fillMaxHeight(),
+                        .fillMaxHeight()
+                        .onFocusChanged { state ->
+                            isPanelInputFocused = state.hasFocus
+                        },
                     colors = CardDefaults.cardColors(
                         containerColor = if (isDark) PastelCardDark else PastelCardLight
                     ),
