@@ -47,7 +47,6 @@ class ButtonMapperService : AccessibilityService() {
         val mapping = currentMappings.find { it.keyCode == event.keyCode }
         if (mapping != null) {
             val label = StorageHelper.getActionLabel(this, mapping.action)
-            Toast.makeText(this, "Executing mapping: $label", Toast.LENGTH_SHORT).show()
             
             when (mapping.action) {
                 "launch_app" -> {
