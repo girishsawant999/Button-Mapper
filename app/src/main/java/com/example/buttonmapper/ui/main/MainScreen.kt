@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.buttonmapper.theme.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
@@ -78,15 +79,15 @@ fun SidebarMenuItem(
     val isDark = isSystemInDarkTheme()
 
     val containerColor = when {
-        isFocused -> if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
-        isSelected -> if (isDark) Color(0xFF374151).copy(alpha = 0.8f) else Color(0xFFE8DEF8)
+        isFocused -> if (isDark) PastelPrimaryDark else PastelPrimaryLight
+        isSelected -> if (isDark) PastelBorderDark.copy(alpha = 0.8f) else PastelFocusBgLight
         else -> Color.Transparent
     }
 
     val contentColor = when {
         isFocused -> if (isDark) Color.Black else Color.White
-        isSelected -> if (isDark) Color(0xFFD0BCFF) else Color(0xFF21005D)
-        else -> if (isDark) Color.LightGray else Color.DarkGray
+        isSelected -> if (isDark) PastelPrimaryDark else PastelOnPrimaryLight
+        else -> if (isDark) PastelSubtitleDark else PastelSubtitleLight
     }
 
     Row(
@@ -179,16 +180,16 @@ fun MainScreen(
     val isDark = isSystemInDarkTheme()
     val backgroundGradient = Brush.verticalGradient(
         colors = if (isDark) {
-            listOf(Color(0xFF111827), Color(0xFF1F2937))
+            listOf(PastelBgStartDark, PastelCardDark)
         } else {
-            listOf(Color(0xFFF3F4F6), Color(0xFFE5E7EB))
+            listOf(PastelBgStartLight, PastelCardLight)
         }
     )
     val textColor = if (isDark) Color.White else Color.Black
-    val cardBg = if (isDark) Color(0xFF1F2937) else Color.White
-    val borderColor = if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
-    val subtitleColor = if (isDark) Color.LightGray else Color.DarkGray
-    val headerCardBg = if (isDark) Color(0xFF374151).copy(alpha = 0.5f) else Color(0xFFE5E7EB)
+    val cardBg = if (isDark) PastelCardDark else Color.White
+    val borderColor = if (isDark) PastelBorderDark else PastelBorderLight
+    val subtitleColor = if (isDark) PastelSubtitleDark else PastelSubtitleLight
+    val headerCardBg = if (isDark) PastelBorderDark.copy(alpha = 0.5f) else PastelCardLight
 
     Box(
         modifier = modifier
@@ -222,7 +223,7 @@ fun MainScreen(
                             text = "Button Mapper",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                            color = if (isDark) PastelPrimaryDark else PastelPrimaryLight
                         )
                         Text(
                             text = "Native Android TV key remapping & task automation",
@@ -292,9 +293,9 @@ fun MainScreen(
                                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     context.startActivity(intent)
                                 },
-                                containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
-                                focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
-                                contentColor = if (isDark) Color.Black else Color.White,
+                                containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
+                                focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
+                                contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
                                 focusedContentColor = Color.Black,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -326,9 +327,9 @@ fun MainScreen(
                                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     context.startActivity(intent)
                                 },
-                                containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
-                                focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
-                                contentColor = if (isDark) Color.Black else Color.White,
+                                containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
+                                focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
+                                contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
                                 focusedContentColor = Color.Black,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -352,7 +353,7 @@ fun MainScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4))
+                            CircularProgressIndicator(color = if (isDark) PastelPrimaryDark else PastelPrimaryLight)
                         }
                     }
                     is MainScreenUiState.Error -> {
@@ -403,10 +404,10 @@ fun MainScreen(
                         .width(380.dp)
                         .fillMaxHeight(),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+                        containerColor = if (isDark) PastelCardDark else PastelCardLight
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1))
+                    border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight)
                 ) {
                     when (val panel = activePanel) {
                         is ActivePanel.AddKeyMapping -> {
@@ -458,8 +459,8 @@ fun KeyBindingsContent(
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
     val textColor = if (isDark) Color.White else Color.Black
-    val cardBg = if (isDark) Color(0xFF1F2937) else Color.White
-    val borderColor = if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+    val cardBg = if (isDark) PastelCardDark else PastelCardLight
+    val borderColor = if (isDark) PastelBorderDark else PastelBorderLight
 
     LazyColumn(
         modifier = modifier,
@@ -479,9 +480,9 @@ fun KeyBindingsContent(
                 )
                 TvButton(
                     onClick = onAddClick,
-                    containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
-                    focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
-                    contentColor = if (isDark) Color.Black else Color.White,
+                    containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
+                    focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
+                    contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
                     focusedContentColor = Color.Black
                 ) {
                     Text("Add Mapping", fontSize = 12.sp)
@@ -542,7 +543,7 @@ fun KeyBindingsContent(
                                         else -> Icons.Default.Build
                                     },
                                     contentDescription = "System Icon",
-                                    tint = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
+                                    tint = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
                                     modifier = Modifier
                                         .size(36.dp)
                                         .padding(end = 12.dp)
@@ -559,7 +560,7 @@ fun KeyBindingsContent(
                                 Text(
                                     text = "Action: ${StorageHelper.getActionLabel(context, mapping.action)}",
                                     fontSize = 12.sp,
-                                    color = if (isDark) Color.LightGray else Color.DarkGray,
+                                    color = if (isDark) PastelSubtitleDark else PastelSubtitleLight,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -568,8 +569,8 @@ fun KeyBindingsContent(
 
                         TvButton(
                             onClick = { viewModel.removeKeyMapping(context, mapping.keyCode) },
-                            containerColor = Color(0xFFEF4444),
-                            focusedContainerColor = Color(0xFFFCA5A5),
+                            containerColor = if (isDark) PastelDangerDark else PastelDangerLight,
+                            focusedContainerColor = if (isDark) PastelDangerFocusedDark else PastelDangerFocusedLight,
                             contentColor = Color.White,
                             focusedContentColor = Color.Black,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -621,8 +622,8 @@ fun SchedulesContent(
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
     val textColor = if (isDark) Color.White else Color.Black
-    val cardBg = if (isDark) Color(0xFF1F2937) else Color.White
-    val borderColor = if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+    val cardBg = if (isDark) PastelCardDark else PastelCardLight
+    val borderColor = if (isDark) PastelBorderDark else PastelBorderLight
 
     LazyColumn(
         modifier = modifier,
@@ -642,9 +643,9 @@ fun SchedulesContent(
                 )
                 TvButton(
                     onClick = onAddClick,
-                    containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
-                    focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
-                    contentColor = if (isDark) Color.Black else Color.White,
+                    containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
+                    focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
+                    contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
                     focusedContentColor = Color.Black
                 ) {
                     Text("Add Schedule", fontSize = 12.sp)
@@ -683,7 +684,7 @@ fun SchedulesContent(
                                 text = "${getDayOfWeekLabel(task.dayOfWeek)} at ${getHourLabel(task.hour)}",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                                color = if (isDark) PastelPrimaryDark else PastelPrimaryLight
                             )
                             val maxVol = remember {
                                 val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
@@ -697,7 +698,7 @@ fun SchedulesContent(
                             Text(
                                 text = "Action: ${task.action.replaceFirstChar { it.uppercase() }} | Value: $percentVal% (ID: ${task.id})",
                                 fontSize = 12.sp,
-                                color = if (isDark) Color.LightGray else Color.DarkGray
+                                color = if (isDark) PastelSubtitleDark else PastelSubtitleLight
                             )
                         }
                         Row(
@@ -706,9 +707,9 @@ fun SchedulesContent(
                         ) {
                             TvButton(
                                 onClick = { onEditClick(task) },
-                                containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
-                                focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
-                                contentColor = if (isDark) Color.Black else Color.White,
+                                containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
+                                focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
+                                contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
                                 focusedContentColor = Color.Black,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                 modifier = Modifier.height(36.dp)
@@ -717,8 +718,8 @@ fun SchedulesContent(
                             }
                             TvButton(
                                 onClick = { viewModel.removeScheduledTask(context, task.id) },
-                                containerColor = Color(0xFFEF4444),
-                                focusedContainerColor = Color(0xFFFCA5A5),
+                                containerColor = if (isDark) PastelDangerDark else PastelDangerLight,
+                                focusedContainerColor = if (isDark) PastelDangerFocusedDark else PastelDangerFocusedLight,
                                 contentColor = Color.White,
                                 focusedContentColor = Color.Black,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -743,7 +744,7 @@ fun AddKeyMappingPanel(
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
     val textColor = if (isDark) Color.White else Color.Black
-    val labelColor = if (isDark) Color.LightGray else Color.DarkGray
+    val labelColor = if (isDark) PastelSubtitleDark else PastelSubtitleLight
 
     var keyCodeStr by remember { mutableStateOf("") }
     var action by remember { mutableStateOf("volume_up") }
@@ -787,7 +788,7 @@ fun AddKeyMappingPanel(
                 text = "Add Key Mapping",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                color = if (isDark) PastelPrimaryDark else PastelPrimaryLight
             )
         }
 
@@ -799,8 +800,8 @@ fun AddKeyMappingPanel(
             }
             val helperColor = when {
                 !isKeyCodeFieldFocused -> labelColor
-                keyCodeStr.isEmpty() -> if (isDark) Color(0xFFCCC2DC) else Color(0xFF6750A4)
-                else -> if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                keyCodeStr.isEmpty() -> if (isDark) PastelSubtitleDark else PastelPrimaryLight
+                else -> if (isDark) PastelPrimaryDark else PastelPrimaryLight
             }
 
             Text(
@@ -820,8 +821,8 @@ fun AddKeyMappingPanel(
                 label = { Text("Key Code (e.g. 24 for Vol Up)") },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
-                    focusedLabelColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                    focusedBorderColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
+                    focusedLabelColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -850,15 +851,15 @@ fun AddKeyMappingPanel(
                         .border(
                             width = if (isFocused) 2.dp else 1.dp,
                             color = if (isFocused) {
-                                if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                                if (isDark) PastelPrimaryDark else PastelPrimaryLight
                             } else {
-                                if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                if (isDark) PastelBorderDark else PastelBorderLight
                             },
                             shape = RoundedCornerShape(4.dp)
                         )
                         .background(
-                            if (isDark) Color(0xFF1F2937).copy(alpha = 0.5f)
-                            else Color.White.copy(alpha = 0.5f)
+                            if (isDark) PastelInputBgDark.copy(alpha = 0.5f)
+                            else PastelInputBgLight.copy(alpha = 0.5f)
                         )
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
@@ -899,9 +900,9 @@ fun AddKeyMappingPanel(
                             Toast.makeText(context, "Please enter a valid key code integer", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
-                    focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
-                    contentColor = if (isDark) Color.Black else Color.White,
+                    containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
+                    focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
+                    contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
                     focusedContentColor = Color.Black
                 ) {
                     Text("Add")
@@ -932,7 +933,7 @@ fun ScheduleFormPanel(
     val context = LocalContext.current
     val isDark = isSystemInDarkTheme()
     val textColor = if (isDark) Color.White else Color.Black
-    val labelColor = if (isDark) Color.LightGray else Color.DarkGray
+    val labelColor = if (isDark) PastelSubtitleDark else PastelSubtitleLight
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
@@ -1000,7 +1001,7 @@ fun ScheduleFormPanel(
                 text = if (isEditing) "Edit Schedule" else "Add Schedule",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                color = if (isDark) PastelPrimaryDark else PastelPrimaryLight
             )
         }
 
@@ -1024,15 +1025,15 @@ fun ScheduleFormPanel(
                         .border(
                             width = if (isDayFocused) 2.dp else 1.dp,
                             color = if (isDayFocused) {
-                                if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                                if (isDark) PastelPrimaryDark else PastelPrimaryLight
                             } else {
-                                if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                if (isDark) PastelBorderDark else PastelBorderLight
                             },
                             shape = RoundedCornerShape(4.dp)
                         )
                         .background(
-                            if (isDark) Color(0xFF1F2937).copy(alpha = 0.5f)
-                            else Color.White.copy(alpha = 0.5f)
+                            if (isDark) PastelInputBgDark.copy(alpha = 0.5f)
+                            else PastelInputBgLight.copy(alpha = 0.5f)
                         )
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
@@ -1076,15 +1077,15 @@ fun ScheduleFormPanel(
                         .border(
                             width = if (isHourFocused) 2.dp else 1.dp,
                             color = if (isHourFocused) {
-                                if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                                if (isDark) PastelPrimaryDark else PastelPrimaryLight
                             } else {
-                                if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                if (isDark) PastelBorderDark else PastelBorderLight
                             },
                             shape = RoundedCornerShape(4.dp)
                         )
                         .background(
-                            if (isDark) Color(0xFF1F2937).copy(alpha = 0.5f)
-                            else Color.White.copy(alpha = 0.5f)
+                            if (isDark) PastelInputBgDark.copy(alpha = 0.5f)
+                            else PastelInputBgLight.copy(alpha = 0.5f)
                         )
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
@@ -1154,15 +1155,15 @@ fun ScheduleFormPanel(
                         .border(
                             width = if (isPercentFocused) 2.dp else 1.dp,
                             color = if (isPercentFocused) {
-                                if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                                if (isDark) PastelPrimaryDark else PastelPrimaryLight
                             } else {
-                                if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                if (isDark) PastelBorderDark else PastelBorderLight
                             },
                             shape = RoundedCornerShape(4.dp)
                         )
                         .background(
-                            if (isDark) Color(0xFF1F2937).copy(alpha = 0.5f)
-                            else Color.White.copy(alpha = 0.5f)
+                            if (isDark) PastelInputBgDark.copy(alpha = 0.5f)
+                            else PastelInputBgLight.copy(alpha = 0.5f)
                         )
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
@@ -1204,9 +1205,9 @@ fun ScheduleFormPanel(
                         }
                         onSave(ScheduledTask(scheduleId, selectedDay, selectedHour, action, calculatedValue))
                     },
-                    containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
-                    focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
-                    contentColor = if (isDark) Color.Black else Color.White,
+                    containerColor = if (isDark) PastelPrimaryDark else PastelPrimaryLight,
+                    focusedContainerColor = if (isDark) PastelFocusBgDark else PastelFocusBgLight,
+                    contentColor = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight,
                     focusedContentColor = Color.Black
                 ) {
                     Text(if (isEditing) "Save" else "Add")
@@ -1222,8 +1223,8 @@ fun ScheduleFormPanel(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF1F2937) else Color.White),
-                border = BorderStroke(1.dp, if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)),
+                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
+                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1248,12 +1249,12 @@ fun ScheduleFormPanel(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(
-                                        if (isItemFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color.Transparent
+                                        if (isItemFocused) PastelPrimaryDark.copy(alpha = 0.25f) else Color.Transparent
                                     )
                                     .border(
                                         width = 1.dp,
-                                        color = if (isItemFocused) Color(0xFFD0BCFF) else {
-                                            if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                        color = if (isItemFocused) PastelPrimaryDark else {
+                                            if (isDark) PastelBorderDark else PastelBorderLight
                                         },
                                         shape = RoundedCornerShape(8.dp)
                                     )
@@ -1284,8 +1285,8 @@ fun ScheduleFormPanel(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF1F2937) else Color.White),
-                border = BorderStroke(1.dp, if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)),
+                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
+                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1310,12 +1311,12 @@ fun ScheduleFormPanel(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(
-                                        if (isItemFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color.Transparent
+                                        if (isItemFocused) PastelPrimaryDark.copy(alpha = 0.25f) else Color.Transparent
                                     )
                                     .border(
                                         width = 1.dp,
-                                        color = if (isItemFocused) Color(0xFFD0BCFF) else {
-                                            if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                        color = if (isItemFocused) PastelPrimaryDark else {
+                                            if (isDark) PastelBorderDark else PastelBorderLight
                                         },
                                         shape = RoundedCornerShape(8.dp)
                                     )
@@ -1346,8 +1347,8 @@ fun ScheduleFormPanel(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF1F2937) else Color.White),
-                border = BorderStroke(1.dp, if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)),
+                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
+                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1380,12 +1381,12 @@ fun ScheduleFormPanel(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(
-                                        if (isItemFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color.Transparent
+                                        if (isItemFocused) PastelPrimaryDark.copy(alpha = 0.25f) else Color.Transparent
                                     )
                                     .border(
                                         width = 1.dp,
-                                        color = if (isItemFocused) Color(0xFFD0BCFF) else {
-                                            if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+                                        color = if (isItemFocused) PastelPrimaryDark else {
+                                            if (isDark) PastelBorderDark else PastelBorderLight
                                         },
                                         shape = RoundedCornerShape(8.dp)
                                     )
@@ -1460,8 +1461,8 @@ fun AddKeyMappingDialog(
                 }
                 val helperColor = when {
                     !isKeyCodeFieldFocused -> Color.LightGray
-                    keyCodeStr.isEmpty() -> Color(0xFFCCC2DC)
-                    else -> Color(0xFFD0BCFF)
+                    keyCodeStr.isEmpty() -> PastelSubtitleDark
+                    else -> PastelPrimaryDark
                 }
 
                 Text(
@@ -1479,8 +1480,8 @@ fun AddKeyMappingDialog(
                     label = { Text("Key Code (e.g. 24 for Vol Up)") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFD0BCFF),
-                        focusedLabelColor = Color(0xFFD0BCFF)
+                        focusedBorderColor = PastelPrimaryDark,
+                        focusedLabelColor = PastelPrimaryDark
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1506,10 +1507,10 @@ fun AddKeyMappingDialog(
                             )
                             .border(
                                 width = if (isFocused) 2.dp else 1.dp,
-                                color = if (isFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                color = if (isFocused) PastelPrimaryDark else PastelBorderDark,
                                 shape = RoundedCornerShape(4.dp)
                             )
-                            .background(Color(0xFF1F2937).copy(alpha = 0.5f))
+                            .background(PastelInputBgDark.copy(alpha = 0.5f))
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Row(
@@ -1542,10 +1543,10 @@ fun AddKeyMappingDialog(
                         Toast.makeText(context, "Please enter a valid key code integer", Toast.LENGTH_SHORT).show()
                     }
                 },
-                containerColor = Color(0xFFD0BCFF),
-                focusedContainerColor = Color.White,
-                contentColor = Color.Black,
-                focusedContentColor = Color.Black
+                containerColor = PastelPrimaryDark,
+                focusedContainerColor = PastelFocusBgDark,
+                contentColor = PastelOnPrimaryDark,
+                focusedContentColor = PastelOnPrimaryDark
             ) {
                 Text("Add")
             }
@@ -1594,8 +1595,8 @@ fun ActionSelectorDialog(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .fillMaxHeight(0.8f),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
-            border = BorderStroke(1.dp, Color(0xFF374151)),
+            colors = CardDefaults.cardColors(containerColor = PastelCardDark),
+            border = BorderStroke(1.dp, PastelBorderDark),
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -1614,11 +1615,11 @@ fun ActionSelectorDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFD0BCFF),
-                        focusedLabelColor = Color(0xFFD0BCFF),
-                        unfocusedBorderColor = Color(0xFF374151),
-                        focusedContainerColor = Color(0xFF111827),
-                        unfocusedContainerColor = Color(0xFF111827)
+                        focusedBorderColor = PastelPrimaryDark,
+                        focusedLabelColor = PastelPrimaryDark,
+                        unfocusedBorderColor = PastelBorderDark,
+                        focusedContainerColor = PastelBgStartDark,
+                        unfocusedContainerColor = PastelBgStartDark
                     )
                 )
 
@@ -1648,10 +1649,10 @@ fun ActionSelectorDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color(0xFF374151).copy(alpha = 0.3f))
+                                        .background(if (isFocused) PastelPrimaryDark.copy(alpha = 0.25f) else PastelBorderDark.copy(alpha = 0.3f))
                                         .border(
                                             width = 1.dp,
-                                            color = Color(0xFF374151),
+                                            color = PastelBorderDark,
                                             shape = RoundedCornerShape(8.dp)
                                         )
                                         .clickable(
@@ -1679,7 +1680,7 @@ fun ActionSelectorDialog(
                                                 else -> Icons.Default.Build
                                             },
                                             contentDescription = "System Icon",
-                                            tint = Color(0xFFD0BCFF),
+                                            tint = PastelPrimaryDark,
                                             modifier = Modifier
                                                 .size(32.dp)
                                                 .padding(end = 12.dp)
@@ -1758,29 +1759,41 @@ fun AddScheduleDialog(
     var selectedPercent by remember { mutableStateOf(50) } // Default 50%
     var expandedPercentDropdown by remember { mutableStateOf(false) }
 
+    val isDark = isSystemInDarkTheme()
+    val titleColor = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
+    val labelColor = if (isDark) PastelSubtitleDark else PastelSubtitleLight
+    val textColor = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
+    val dropdownBg = if (isDark) PastelInputBgDark else PastelInputBgLight
+    val dropdownText = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
+    val iconTint = if (isDark) PastelSubtitleDark else PastelSubtitleLight
+    val buttonContainer = if (isDark) PastelPrimaryDark else PastelPrimaryLight
+    val buttonFocusedContainer = if (isDark) PastelOnPrimaryLight else PastelPrimaryDark
+    val buttonContent = if (isDark) PastelOnPrimaryDark else PastelOnPrimaryLight
+    val buttonFocusedContent = if (isDark) PastelPrimaryDark else PastelOnPrimaryDark
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Scheduled Task", color = Color.White) },
+        title = { Text("Add Scheduled Task", color = titleColor) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = id,
                     onValueChange = { id = it },
-                    label = { Text("Unique Schedule ID") },
+                    label = { Text("Unique Schedule ID", color = labelColor) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFD0BCFF),
-                        focusedLabelColor = Color(0xFFD0BCFF)
+                        focusedBorderColor = PastelPrimaryDark,
+                        focusedLabelColor = PastelPrimaryDark,
+                        unfocusedLabelColor = labelColor,
+                        unfocusedBorderColor = PastelBorderDark
                     )
                 )
 
                 Column {
-                    Text("Day of Week", fontSize = 12.sp, color = Color.LightGray)
+                    Text("Day of Week", fontSize = 12.sp, color = labelColor)
                     Spacer(modifier = Modifier.height(4.dp))
-                    
                     val dayInteractionSource = remember { MutableInteractionSource() }
                     val isDayFocused by dayInteractionSource.collectIsFocusedAsState()
-                    
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1791,10 +1804,10 @@ fun AddScheduleDialog(
                             )
                             .border(
                                 width = if (isDayFocused) 2.dp else 1.dp,
-                                color = if (isDayFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                color = if (isDayFocused) PastelPrimaryDark else PastelBorderDark,
                                 shape = RoundedCornerShape(4.dp)
                             )
-                            .background(Color(0xFF1F2937).copy(alpha = 0.5f))
+                            .background(dropdownBg.copy(alpha = 0.5f))
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Row(
@@ -1804,25 +1817,23 @@ fun AddScheduleDialog(
                         ) {
                             Text(
                                 text = dayOptions.find { it.first == selectedDay }?.second ?: "Monday",
-                                color = Color.White,
+                                color = dropdownText,
                                 fontSize = 15.sp
                             )
                             Icon(
                                 imageVector = Icons.Filled.ArrowDropDown,
                                 contentDescription = "Dropdown",
-                                tint = Color.LightGray
+                                tint = iconTint
                             )
                         }
                     }
                 }
 
                 Column {
-                    Text("Hour of Day", fontSize = 12.sp, color = Color.LightGray)
+                    Text("Hour of Day", fontSize = 12.sp, color = labelColor)
                     Spacer(modifier = Modifier.height(4.dp))
-                    
                     val hourInteractionSource = remember { MutableInteractionSource() }
                     val isHourFocused by hourInteractionSource.collectIsFocusedAsState()
-                    
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1833,10 +1844,10 @@ fun AddScheduleDialog(
                             )
                             .border(
                                 width = if (isHourFocused) 2.dp else 1.dp,
-                                color = if (isHourFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                color = if (isHourFocused) PastelPrimaryDark else PastelBorderDark,
                                 shape = RoundedCornerShape(4.dp)
                             )
-                            .background(Color(0xFF1F2937).copy(alpha = 0.5f))
+                            .background(dropdownBg.copy(alpha = 0.5f))
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Row(
@@ -1846,20 +1857,20 @@ fun AddScheduleDialog(
                         ) {
                             Text(
                                 text = getHourLabel(selectedHour),
-                                color = Color.White,
+                                color = dropdownText,
                                 fontSize = 15.sp
                             )
                             Icon(
                                 imageVector = Icons.Filled.ArrowDropDown,
                                 contentDescription = "Dropdown",
-                                tint = Color.LightGray
+                                tint = iconTint
                             )
                         }
                     }
                 }
 
                 Column {
-                    Text("Action Type", fontSize = 12.sp, color = Color.LightGray)
+                    Text("Action Type", fontSize = 12.sp, color = labelColor)
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -1869,25 +1880,23 @@ fun AddScheduleDialog(
                                 selected = action == "volume",
                                 onClick = { action = "volume" }
                             )
-                            Text("Volume", color = Color.White, fontSize = 13.sp)
+                            Text("Volume", color = textColor, fontSize = 13.sp)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(
                                 selected = action == "brightness",
                                 onClick = { action = "brightness" }
                             )
-                            Text("Brightness", color = Color.White, fontSize = 13.sp)
+                            Text("Brightness", color = textColor, fontSize = 13.sp)
                         }
                     }
                 }
 
                 Column {
-                    Text("Select Level (Percentage)", fontSize = 12.sp, color = Color.LightGray)
+                    Text("Select Level (Percentage)", fontSize = 12.sp, color = labelColor)
                     Spacer(modifier = Modifier.height(4.dp))
-                    
                     val interactionSource = remember { MutableInteractionSource() }
                     val isFocused by interactionSource.collectIsFocusedAsState()
-                    
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1898,10 +1907,10 @@ fun AddScheduleDialog(
                             )
                             .border(
                                 width = if (isFocused) 2.dp else 1.dp,
-                                color = if (isFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                color = if (isFocused) PastelPrimaryDark else PastelBorderDark,
                                 shape = RoundedCornerShape(4.dp)
                             )
-                            .background(Color(0xFF1F2937).copy(alpha = 0.5f))
+                            .background((if (isDark) PastelCardDark else PastelCardLight).copy(alpha = 0.5f))
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Row(
@@ -1911,13 +1920,13 @@ fun AddScheduleDialog(
                         ) {
                             Text(
                                 text = "$selectedPercent%",
-                                color = Color.White,
+                                color = dropdownText,
                                 fontSize = 15.sp
                             )
                             Icon(
                                 imageVector = Icons.Filled.ArrowDropDown,
                                 contentDescription = "Dropdown",
-                                tint = Color.LightGray
+                                tint = iconTint
                             )
                         }
                     }
@@ -1932,24 +1941,23 @@ fun AddScheduleDialog(
                     } else {
                         Math.round(255 * (selectedPercent / 100f)).coerceIn(10, 255)
                     }
-
                     if (id.trim().isEmpty()) {
                         Toast.makeText(context, "ID cannot be empty", Toast.LENGTH_SHORT).show()
                     } else {
                         onAdd(id.trim(), selectedDay, selectedHour, action, calculatedValue)
                     }
                 },
-                containerColor = Color(0xFFD0BCFF),
-                focusedContainerColor = Color.White,
-                contentColor = Color.Black,
-                focusedContentColor = Color.Black
+                containerColor = buttonContainer,
+                focusedContainerColor = buttonFocusedContainer,
+                contentColor = buttonContent,
+                focusedContentColor = buttonFocusedContent
             ) {
                 Text("Add")
             }
         },
         dismissButton = {
             TvTextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = labelColor)
             }
         }
     )
@@ -1960,19 +1968,18 @@ fun AddScheduleDialog(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
-                border = BorderStroke(1.dp, Color(0xFF374151)),
+                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
+                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = "Select Day of Week",
-                        color = Color.White,
+                        color = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
-                    
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().weight(1f)
@@ -1980,15 +1987,17 @@ fun AddScheduleDialog(
                         items(dayOptions) { option ->
                             val itemInteractionSource = remember { MutableInteractionSource() }
                             val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-                            
+                            val itemBg = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight).copy(alpha = 0.25f) else Color.Transparent
+                            val itemBorder = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight) else (if (isDark) PastelBorderDark else PastelBorderLight)
+                            val itemText = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isItemFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color.Transparent)
+                                    .background(itemBg)
                                     .border(
                                         width = 1.dp,
-                                        color = if (isItemFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                        color = itemBorder,
                                         shape = RoundedCornerShape(8.dp)
                                     )
                                     .clickable(
@@ -2002,7 +2011,7 @@ fun AddScheduleDialog(
                                     .padding(12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(option.second, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                Text(option.second, color = itemText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -2017,19 +2026,18 @@ fun AddScheduleDialog(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
-                border = BorderStroke(1.dp, Color(0xFF374151)),
+                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
+                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = "Select Hour of Day",
-                        color = Color.White,
+                        color = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
-                    
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().weight(1f)
@@ -2037,15 +2045,17 @@ fun AddScheduleDialog(
                         items(hourOptions) { hr ->
                             val itemInteractionSource = remember { MutableInteractionSource() }
                             val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-                            
+                            val itemBg = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight).copy(alpha = 0.25f) else Color.Transparent
+                            val itemBorder = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight) else (if (isDark) PastelBorderDark else PastelBorderLight)
+                            val itemText = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isItemFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color.Transparent)
+                                    .background(itemBg)
                                     .border(
                                         width = 1.dp,
-                                        color = if (isItemFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                        color = itemBorder,
                                         shape = RoundedCornerShape(8.dp)
                                     )
                                     .clickable(
@@ -2059,7 +2069,7 @@ fun AddScheduleDialog(
                                     .padding(12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(getHourLabel(hr), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                Text(getHourLabel(hr), color = itemText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -2074,19 +2084,18 @@ fun AddScheduleDialog(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .fillMaxHeight(0.6f),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
-                border = BorderStroke(1.dp, Color(0xFF374151)),
+                colors = CardDefaults.cardColors(containerColor = if (isDark) PastelCardDark else PastelCardLight),
+                border = BorderStroke(1.dp, if (isDark) PastelBorderDark else PastelBorderLight),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = "Select Percentage",
-                        color = Color.White,
+                        color = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
-                    
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().weight(1f)
@@ -2094,15 +2103,17 @@ fun AddScheduleDialog(
                         items(percentOptions) { pct ->
                             val itemInteractionSource = remember { MutableInteractionSource() }
                             val isItemFocused by itemInteractionSource.collectIsFocusedAsState()
-                            
+                            val itemBg = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight).copy(alpha = 0.25f) else Color.Transparent
+                            val itemBorder = if (isItemFocused) (if (isDark) PastelPrimaryDark else PastelPrimaryLight) else (if (isDark) PastelBorderDark else PastelBorderLight)
+                            val itemText = if (isDark) PastelOnPrimaryLight else PastelSubtitleLight
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isItemFocused) Color(0xFFD0BCFF).copy(alpha = 0.25f) else Color.Transparent)
+                                    .background(itemBg)
                                     .border(
                                         width = 1.dp,
-                                        color = if (isItemFocused) Color(0xFFD0BCFF) else Color(0xFF374151),
+                                        color = itemBorder,
                                         shape = RoundedCornerShape(8.dp)
                                     )
                                     .clickable(
@@ -2116,7 +2127,7 @@ fun AddScheduleDialog(
                                     .padding(12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("$pct%", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                Text("$pct%", color = itemText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -2163,8 +2174,8 @@ fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
 fun TvButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    containerColor: Color = Color(0xFF374151),
-    focusedContainerColor: Color = Color(0xFFD0BCFF),
+    containerColor: Color = PastelCardDark,
+    focusedContainerColor: Color = PastelPrimaryDark,
     contentColor: Color = Color.White,
     focusedContentColor: Color = Color.Black,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
@@ -2192,7 +2203,7 @@ fun TvTextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     contentColor: Color = Color.LightGray,
-    focusedContentColor: Color = Color(0xFFD0BCFF),
+    focusedContentColor: Color = PastelPrimaryDark,
     content: @Composable RowScope.() -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
