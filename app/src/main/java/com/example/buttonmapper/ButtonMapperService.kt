@@ -3,6 +3,7 @@ package com.example.buttonmapper
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.content.SharedPreferences
 import android.media.AudioManager
 import android.provider.Settings
 import android.view.KeyEvent
@@ -12,10 +13,28 @@ import android.widget.Toast
 class ButtonMapperService : AccessibilityService() {
     private var keyMappings: List<KeyMapping> = emptyList()
 
+    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "key_mappings") {
+            reloadKeyMappings()
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
-        keyMappings = StorageHelper.loadKeyMappings(this)
+        StorageHelper.getPrefs(this).registerOnSharedPreferenceChangeListener(prefListener)
+        reloadKeyMappings()
         ScheduleScheduler.validateAndExecute(this)
+    }
+
+    private fun reloadKeyMappings() {
+        keyMappings = StorageHelper.loadKeyMappings(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            StorageHelper.getPrefs(this).unregisterOnSharedPreferenceChangeListener(prefListener)
+        } catch (_: Exception) {}
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -44,11 +63,9 @@ class ButtonMapperService : AccessibilityService() {
             }
         }
 
-        val currentMappings = StorageHelper.loadKeyMappings(this)
-        val mapping = currentMappings.find { it.keyCode == event.keyCode }
+        // Search the cached keyMappings list (in-memory) to avoid disk read and JSON parsing on hot key presses
+        val mapping = keyMappings.find { it.keyCode == event.keyCode }
         if (mapping != null) {
-            val label = StorageHelper.getActionLabel(this, mapping.action)
-            
             when (mapping.action) {
                 "launch_app" -> {
                     val launchIntent = packageManager.getLaunchIntentForPackage(packageName)

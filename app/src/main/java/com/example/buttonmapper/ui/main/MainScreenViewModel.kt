@@ -31,6 +31,9 @@ class MainScreenViewModel(
   private val _uiState = MutableStateFlow<MainScreenUiState>(MainScreenUiState.Loading)
   val uiState: StateFlow<MainScreenUiState> = _uiState.asStateFlow()
 
+  private val _installedApps = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+  val installedApps: StateFlow<List<Pair<String, String>>> = _installedApps.asStateFlow()
+
   private val _logMessages = MutableStateFlow<List<String>>(listOf("ViewModel created"))
   val logMessages: StateFlow<List<String>> = _logMessages.asStateFlow()
 
@@ -38,6 +41,26 @@ class MainScreenViewModel(
     appendLog("loadData called")
     ScheduleScheduler.validateAndExecute(context)
     ScheduleScheduler.startHourlyValidation(context)
+
+    viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+      try {
+        val pm = context.packageManager
+        val apps = pm.getInstalledPackages(0).mapNotNull { pkg ->
+          val appInfo = pkg.applicationInfo ?: return@mapNotNull null
+          val appLabel = appInfo.loadLabel(pm).toString()
+          appLabel to pkg.packageName
+        }
+        .filter { it.second != context.packageName }
+        .distinctBy { it.second }
+        .sortedBy { it.first.lowercase() }
+
+        _installedApps.value = apps
+        appendLog("Loaded ${apps.size} installed apps asynchronously on IO thread")
+      } catch (e: Exception) {
+        appendLog("Error loading installed apps: ${e.message}")
+      }
+    }
+
     viewModelScope.launch {
       try {
         appendLog("Getting key mappings flow...")

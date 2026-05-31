@@ -385,6 +385,7 @@ fun KeyBindingsContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val installedApps by viewModel.installedApps.collectAsState()
     var showAddKeyMappingDialog by remember { mutableStateOf(false) }
     val isDark = isSystemInDarkTheme()
     val textColor = if (isDark) Color.White else Color.Black
@@ -515,6 +516,7 @@ fun KeyBindingsContent(
 
     if (showAddKeyMappingDialog) {
         AddKeyMappingDialog(
+            installedApps = installedApps,
             onAdd = { keyCode, action ->
                 viewModel.addKeyMapping(context, KeyMapping(keyCode, action))
                 showAddKeyMappingDialog = false
@@ -669,6 +671,7 @@ fun SchedulesContent(
 
 @Composable
 fun AddKeyMappingDialog(
+    installedApps: List<Pair<String, String>>,
     onAdd: (Int, String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -677,30 +680,14 @@ fun AddKeyMappingDialog(
     var action by remember { mutableStateOf("volume_up") }
     var showActionSelector by remember { mutableStateOf(false) }
 
-    val pm = context.packageManager
-    val apps = remember {
-        try {
-            pm.getInstalledPackages(0).mapNotNull { pkg ->
-                val appInfo = pkg.applicationInfo ?: return@mapNotNull null
-                val appLabel = appInfo.loadLabel(pm).toString()
-                appLabel to pkg.packageName
-            }
-            .filter { it.second != context.packageName }
-            .distinctBy { it.second }
-            .sortedBy { it.first.lowercase() }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    val actionOptions = remember {
+    val actionOptions = remember(installedApps) {
         listOf(
             "volume_up" to "Volume Up",
             "volume_down" to "Volume Down",
             "brightness_up" to "Brightness Up",
             "brightness_down" to "Brightness Down",
             "launch_app" to "Launch Button Mapper App"
-        ) + apps.map { it.second to "Launch: ${it.first}" }
+        ) + installedApps.map { it.second to "Launch: ${it.first}" }
     }
 
     var selectedOptionText by remember {
