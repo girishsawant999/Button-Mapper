@@ -210,38 +210,13 @@ fun MainScreen(
                             )
                         }
                         if (!isWriteSettingsEnabled) {
-                            TvButton(
-                                onClick = {
-                                    try {
-                                        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                                            data = Uri.parse("package:${context.packageName}")
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        try {
-                                            // Fallback 1: Open Write Settings Screen without data Uri
-                                            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            }
-                                            context.startActivity(intent)
-                                        } catch (e2: Exception) {
-                                            try {
-                                                // Fallback 2: Open general system settings
-                                                val intent = Intent(Settings.ACTION_SETTINGS).apply {
-                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                }
-                                                context.startActivity(intent)
-                                            } catch (e3: Exception) {
-                                                Toast.makeText(context, "Could not open settings. Please grant Write Settings permission manually.", Toast.LENGTH_LONG).show()
-                                            }
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Grant Settings Permission", fontSize = 12.sp)
-                            }
+                            Text(
+                                text = "To enable: Go to Settings > Apps > Special app access > Modify system settings > Button Mapper, and select Allow.",
+                                fontSize = 11.sp,
+                                color = Color(0xFFCCC2DC),
+                                lineHeight = 15.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
                         }
                     }
                 }
@@ -575,11 +550,19 @@ fun AddKeyMappingDialog(
     var showActionSelector by remember { mutableStateOf(false) }
 
     val pm = context.packageManager
-    val launcherIntent = remember { Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) } }
     val apps = remember {
-        pm.queryIntentActivities(launcherIntent, 0)
-            .map { it.activityInfo.loadLabel(pm).toString() to it.activityInfo.packageName }
+        try {
+            pm.getInstalledPackages(0).mapNotNull { pkg ->
+                val appInfo = pkg.applicationInfo ?: return@mapNotNull null
+                val appLabel = appInfo.loadLabel(pm).toString()
+                appLabel to pkg.packageName
+            }
+            .filter { it.second != context.packageName }
+            .distinctBy { it.second }
             .sortedBy { it.first.lowercase() }
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     val actionOptions = remember {

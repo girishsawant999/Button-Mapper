@@ -60,7 +60,10 @@ class ButtonMapperService : AccessibilityService() {
                 "brightness_down" -> adjustBrightness(-20)
                 // Add more actions as needed
                 else -> {
-                    val launchIntent = packageManager.getLaunchIntentForPackage(mapping.action)
+                    var launchIntent = packageManager.getLaunchIntentForPackage(mapping.action)
+                    if (launchIntent == null) {
+                        launchIntent = packageManager.getLeanbackLaunchIntentForPackage(mapping.action)
+                    }
                     if (launchIntent != null) {
                         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(launchIntent)
