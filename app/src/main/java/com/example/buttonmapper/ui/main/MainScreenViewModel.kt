@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.buttonmapper.KeyMapping
 import com.example.buttonmapper.ScheduledAlarm
+import com.example.buttonmapper.AlarmScheduler
 import com.example.buttonmapper.data.DataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -87,8 +88,15 @@ class MainScreenViewModel(
       val current = dataRepository.getScheduledAlarms(context).first()
       // Filter out any alarm with the same ID to prevent duplication
       val filtered = current.filter { it.id != alarm.id }
+      // Cancel previous system alarm if it exists
+      AlarmScheduler.cancelAlarm(context, alarm.id)
+      
       val updated = filtered + alarm
       dataRepository.setScheduledAlarms(context, updated)
+      
+      // Schedule the new alarm in system
+      AlarmScheduler.scheduleAlarm(context, alarm)
+      
       appendLog("Added scheduled alarm: $alarm")
       loadData(context)
     }
@@ -99,6 +107,10 @@ class MainScreenViewModel(
       val current = dataRepository.getScheduledAlarms(context).first()
       val updated = current.filter { it.id != alarmId }
       dataRepository.setScheduledAlarms(context, updated)
+      
+      // Cancel the system alarm
+      AlarmScheduler.cancelAlarm(context, alarmId)
+      
       appendLog("Removed scheduled alarm: $alarmId")
       loadData(context)
     }

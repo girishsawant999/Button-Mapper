@@ -43,10 +43,8 @@ class ButtonMapperService : AccessibilityService() {
             }
         }
 
-        if (keyMappings.isEmpty()) {
-            keyMappings = StorageHelper.loadKeyMappings(this)
-        }
-        val mapping = keyMappings.find { it.keyCode == event.keyCode }
+        val currentMappings = StorageHelper.loadKeyMappings(this)
+        val mapping = currentMappings.find { it.keyCode == event.keyCode }
         if (mapping != null) {
             when (mapping.action) {
                 "launch_app" -> {
@@ -87,6 +85,7 @@ class ButtonMapperService : AccessibilityService() {
             val cResolver = contentResolver
             val cur = Settings.System.getInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, 100)
             val newVal = (cur + delta).coerceIn(10, 255)
+            Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
             Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, newVal)
         } catch (e: Exception) {
             Toast.makeText(this, "Brightness error: ${e.message}", Toast.LENGTH_SHORT).show()

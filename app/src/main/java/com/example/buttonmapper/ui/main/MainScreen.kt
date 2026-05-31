@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,6 +50,65 @@ import com.example.buttonmapper.KeyMapping
 import com.example.buttonmapper.ScheduledAlarm
 import androidx.navigation3.runtime.NavKey
 
+enum class Tab {
+    KeyBindings,
+    Alarms
+}
+
+@Composable
+fun SidebarMenuItem(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val isDark = isSystemInDarkTheme()
+
+    val containerColor = when {
+        isFocused -> if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+        isSelected -> if (isDark) Color(0xFF374151).copy(alpha = 0.8f) else Color(0xFFE8DEF8)
+        else -> Color.Transparent
+    }
+
+    val contentColor = when {
+        isFocused -> if (isDark) Color.Black else Color.White
+        isSelected -> if (isDark) Color(0xFFD0BCFF) else Color(0xFF21005D)
+        else -> if (isDark) Color.LightGray else Color.DarkGray
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(containerColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = contentColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = text,
+            color = contentColor,
+            fontSize = 14.sp,
+            fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -67,7 +127,7 @@ fun MainScreen(
     }
 
     val state by viewModel.uiState.collectAsState()
-    val logMessages by viewModel.logMessages.collectAsState()
+    var selectedTab by remember { mutableStateOf(Tab.KeyBindings) }
     var showToast by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
@@ -89,7 +149,6 @@ fun MainScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.appendLog("MainScreen UI Launched")
         viewModel.loadData(context)
     }
 
@@ -106,32 +165,41 @@ fun MainScreen(
         showToast = false
     }
 
-    // Gorgeous dark theme colors
-    val darkBgGradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF111827), Color(0xFF1F2937))
+    val isDark = isSystemInDarkTheme()
+    val backgroundGradient = Brush.verticalGradient(
+        colors = if (isDark) {
+            listOf(Color(0xFF111827), Color(0xFF1F2937))
+        } else {
+            listOf(Color(0xFFF3F4F6), Color(0xFFE5E7EB))
+        }
     )
+    val textColor = if (isDark) Color.White else Color.Black
+    val cardBg = if (isDark) Color(0xFF1F2937) else Color.White
+    val borderColor = if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+    val subtitleColor = if (isDark) Color.LightGray else Color.DarkGray
+    val headerCardBg = if (isDark) Color(0xFF374151).copy(alpha = 0.5f) else Color(0xFFE5E7EB)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(darkBgGradient)
+            .background(backgroundGradient)
             .padding(16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Left Panel: Header, Permissions, Diagnostics
+            // Left Panel (Sidebar): Header, Menu Items, Permissions (Bottom)
             Column(
                 modifier = Modifier
-                    .weight(0.4f)
+                    .weight(0.35f)
                     .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Header Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF374151).copy(alpha = 0.5f)),
+                    colors = CardDefaults.cardColors(containerColor = headerCardBg),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -139,33 +207,53 @@ fun MainScreen(
                             text = "Button Mapper",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFD0BCFF)
+                            color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
                         )
                         Text(
                             text = "Native Android TV key remapping & task automation",
                             fontSize = 12.sp,
-                            color = Color.LightGray,
+                            color = subtitleColor,
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
 
-                // Permissions Card
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Menu Items
+                SidebarMenuItem(
+                    text = "Key Bindings",
+                    icon = Icons.Default.Build,
+                    isSelected = selectedTab == Tab.KeyBindings,
+                    onClick = { selectedTab = Tab.KeyBindings }
+                )
+
+                SidebarMenuItem(
+                    text = "Alarms",
+                    icon = Icons.Default.Notifications,
+                    isSelected = selectedTab == Tab.Alarms,
+                    onClick = { selectedTab = Tab.Alarms }
+                )
+
+                // Spacer to push permissions to the bottom
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Permissions Card (Bottom of Sidebar)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937).copy(alpha = 0.8f)),
+                    colors = CardDefaults.cardColors(containerColor = cardBg.copy(alpha = 0.8f)),
                     shape = RoundedCornerShape(12.dp),
-                    border = CardDefaults.outlinedCardBorder()
+                    border = BorderStroke(1.dp, borderColor)
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = "Required Permissions",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
                         )
 
                         // Accessibility Status
@@ -174,10 +262,10 @@ fun MainScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Accessibility Service", fontSize = 13.sp, color = Color.LightGray)
+                            Text("Accessibility Service", fontSize = 12.sp, color = subtitleColor)
                             Text(
                                 text = if (isAccessibilityEnabled) "Active ✓" else "Inactive ✕",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isAccessibilityEnabled) Color.Green else Color.Red
                             )
@@ -189,9 +277,13 @@ fun MainScreen(
                                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     context.startActivity(intent)
                                 },
+                                containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
+                                focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
+                                contentColor = if (isDark) Color.Black else Color.White,
+                                focusedContentColor = Color.Black,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Enable Accessibility", fontSize = 12.sp)
+                                Text("Enable Accessibility", fontSize = 11.sp)
                             }
                         }
 
@@ -201,63 +293,41 @@ fun MainScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Modify System Settings", fontSize = 13.sp, color = Color.LightGray)
+                            Text("Modify System Settings", fontSize = 12.sp, color = subtitleColor)
                             Text(
                                 text = if (isWriteSettingsEnabled) "Granted ✓" else "Denied ✕",
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isWriteSettingsEnabled) Color.Green else Color.Red
                             )
                         }
                         if (!isWriteSettingsEnabled) {
-                            Text(
-                                text = "To enable: Go to Settings > Apps > Special app access > Modify system settings > Button Mapper, and select Allow.",
-                                fontSize = 11.sp,
-                                color = Color(0xFFCCC2DC),
-                                lineHeight = 15.sp,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Diagnostics/Log Section
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.4f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "Diagnostic Logs",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFCCC2DC)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(logMessages.takeLast(10)) { msg ->
-                                Text(
-                                    text = msg,
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = Color.LightGray
-                                )
+                            TvButton(
+                                onClick = {
+                                    val intent = Intent(
+                                        Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                                        Uri.parse("package:${context.packageName}")
+                                    )
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    context.startActivity(intent)
+                                },
+                                containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
+                                focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
+                                contentColor = if (isDark) Color.Black else Color.White,
+                                focusedContentColor = Color.Black,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Grant Write Settings", fontSize = 11.sp)
                             }
                         }
                     }
                 }
             }
 
-            // Right Panel: Mappings & Alarms configuration
+            // Right Panel: Content switching based on selected tab
             Column(
                 modifier = Modifier
-                    .weight(0.6f)
+                    .weight(0.65f)
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -267,7 +337,7 @@ fun MainScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4))
                         }
                     }
                     is MainScreenUiState.Error -> {
@@ -284,12 +354,22 @@ fun MainScreen(
                     }
                     is MainScreenUiState.Success -> {
                         val success = state as MainScreenUiState.Success
-                        MainScreenContent(
-                            keyMappings = success.keyMappings,
-                            scheduledAlarms = success.scheduledAlarms,
-                            viewModel = viewModel,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        when (selectedTab) {
+                            Tab.KeyBindings -> {
+                                KeyBindingsContent(
+                                    keyMappings = success.keyMappings,
+                                    viewModel = viewModel,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            Tab.Alarms -> {
+                                AlarmsContent(
+                                    scheduledAlarms = success.scheduledAlarms,
+                                    viewModel = viewModel,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -298,21 +378,22 @@ fun MainScreen(
 }
 
 @Composable
-fun MainScreenContent(
+fun KeyBindingsContent(
     keyMappings: List<KeyMapping>,
-    scheduledAlarms: List<ScheduledAlarm>,
     viewModel: MainScreenViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showAddKeyMappingDialog by remember { mutableStateOf(false) }
-    var showAddAlarmDialog by remember { mutableStateOf(false) }
+    val isDark = isSystemInDarkTheme()
+    val textColor = if (isDark) Color.White else Color.Black
+    val cardBg = if (isDark) Color(0xFF1F2937) else Color.White
+    val borderColor = if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
 
     LazyColumn(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Key Mappings Section
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -321,15 +402,15 @@ fun MainScreenContent(
             ) {
                 Text(
                     text = "Key Mappings",
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = textColor
                 )
                 TvButton(
                     onClick = { showAddKeyMappingDialog = true },
-                    containerColor = Color(0xFFD0BCFF),
-                    focusedContainerColor = Color.White,
-                    contentColor = Color.Black,
+                    containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
+                    focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
+                    contentColor = if (isDark) Color.Black else Color.White,
                     focusedContentColor = Color.Black
                 ) {
                     Text("Add Mapping", fontSize = 12.sp)
@@ -341,10 +422,11 @@ fun MainScreenContent(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF374151).copy(alpha = 0.2f))
+                    colors = CardDefaults.cardColors(containerColor = cardBg.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, borderColor)
                 ) {
-                    Box(modifier = Modifier.padding(16.dp), contentAlignment = Alignment.Center) {
-                        Text("No key mappings configured yet.", color = Color.Gray, fontSize = 13.sp)
+                    Box(modifier = Modifier.padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text("No key mappings configured yet.", color = Color.Gray, fontSize = 14.sp)
                     }
                 }
             }
@@ -352,8 +434,8 @@ fun MainScreenContent(
             items(keyMappings) { mapping ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
-                    border = BorderStroke(1.dp, Color(0xFF374151))
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, borderColor)
                 ) {
                     Row(
                         modifier = Modifier
@@ -376,7 +458,7 @@ fun MainScreenContent(
                                 AppIcon(
                                     packageName = mapping.action,
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(36.dp)
                                         .padding(end = 12.dp)
                                 )
                             } else {
@@ -389,9 +471,9 @@ fun MainScreenContent(
                                         else -> Icons.Default.Build
                                     },
                                     contentDescription = "System Icon",
-                                    tint = Color(0xFFD0BCFF),
+                                    tint = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(36.dp)
                                         .padding(end = 12.dp)
                                 )
                             }
@@ -399,14 +481,14 @@ fun MainScreenContent(
                             Column {
                                 Text(
                                     text = "Key Code: ${mapping.keyCode}",
-                                    fontSize = 15.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
+                                    color = textColor
                                 )
                                 Text(
                                     text = "Action: ${getActionLabel(context, mapping.action)}",
                                     fontSize = 12.sp,
-                                    color = Color.LightGray,
+                                    color = if (isDark) Color.LightGray else Color.DarkGray,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -419,98 +501,10 @@ fun MainScreenContent(
                             focusedContainerColor = Color(0xFFFCA5A5),
                             contentColor = Color.White,
                             focusedContentColor = Color.Black,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.height(36.dp)
                         ) {
-                            Text("Delete", fontSize = 11.sp)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Scheduled Alarms Section
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Scheduled Alarms",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                TvButton(
-                    onClick = { showAddAlarmDialog = true },
-                    containerColor = Color(0xFFD0BCFF),
-                    focusedContainerColor = Color.White,
-                    contentColor = Color.Black,
-                    focusedContentColor = Color.Black
-                ) {
-                    Text("Add Alarm", fontSize = 12.sp)
-                }
-            }
-        }
-
-        if (scheduledAlarms.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF374151).copy(alpha = 0.2f))
-                ) {
-                    Box(modifier = Modifier.padding(16.dp), contentAlignment = Alignment.Center) {
-                        Text("No scheduled alarms configured yet.", color = Color.Gray, fontSize = 13.sp)
-                    }
-                }
-            }
-        } else {
-            items(scheduledAlarms) { alarm ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
-                    border = BorderStroke(1.dp, Color(0xFF374151))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = String.format("%02d:%02d", alarm.hour, alarm.minute),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFD0BCFF)
-                            )
-                            val maxVol = remember {
-                                val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                                am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-                            }
-                            val percentVal = if (alarm.action == "volume") {
-                                Math.round((alarm.value.toFloat() / maxVol) * 100)
-                            } else {
-                                Math.round((alarm.value.toFloat() / 255f) * 100)
-                            }
-                            Text(
-                                text = "Action: ${alarm.action.replaceFirstChar { it.uppercase() }} | Value: $percentVal% (ID: ${alarm.id})",
-                                fontSize = 12.sp,
-                                color = Color.LightGray
-                            )
-                        }
-                        TvButton(
-                            onClick = { viewModel.removeScheduledAlarm(context, alarm.id) },
-                            containerColor = Color(0xFFEF4444),
-                            focusedContainerColor = Color(0xFFFCA5A5),
-                            contentColor = Color.White,
-                            focusedContentColor = Color.Black,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Text("Delete", fontSize = 11.sp)
+                            Text("Delete", fontSize = 12.sp)
                         }
                     }
                 }
@@ -527,6 +521,113 @@ fun MainScreenContent(
             onDismiss = { showAddKeyMappingDialog = false }
         )
     }
+}
+
+@Composable
+fun AlarmsContent(
+    scheduledAlarms: List<ScheduledAlarm>,
+    viewModel: MainScreenViewModel,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var showAddAlarmDialog by remember { mutableStateOf(false) }
+    val isDark = isSystemInDarkTheme()
+    val textColor = if (isDark) Color.White else Color.Black
+    val cardBg = if (isDark) Color(0xFF1F2937) else Color.White
+    val borderColor = if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB)
+
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Scheduled Alarms",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                TvButton(
+                    onClick = { showAddAlarmDialog = true },
+                    containerColor = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4),
+                    focusedContainerColor = if (isDark) Color.White else Color(0xFFE8DEF8),
+                    contentColor = if (isDark) Color.Black else Color.White,
+                    focusedContentColor = Color.Black
+                ) {
+                    Text("Add Alarm", fontSize = 12.sp)
+                }
+            }
+        }
+
+        if (scheduledAlarms.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = cardBg.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, borderColor)
+                ) {
+                    Box(modifier = Modifier.padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text("No scheduled alarms configured yet.", color = Color.Gray, fontSize = 14.sp)
+                    }
+                }
+            }
+        } else {
+            items(scheduledAlarms) { alarm ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, borderColor)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = String.format("%02d:%02d", alarm.hour, alarm.minute),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) Color(0xFFD0BCFF) else Color(0xFF6750A4)
+                            )
+                            val maxVol = remember {
+                                val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                                am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                            }
+                            val percentVal = if (alarm.action == "volume") {
+                                Math.round((alarm.value.toFloat() / maxVol) * 100)
+                            } else {
+                                Math.round((alarm.value.toFloat() / 255f) * 100)
+                            }
+                            Text(
+                                text = "Action: ${alarm.action.replaceFirstChar { it.uppercase() }} | Value: $percentVal% (ID: ${alarm.id})",
+                                fontSize = 12.sp,
+                                color = if (isDark) Color.LightGray else Color.DarkGray
+                            )
+                        }
+                        TvButton(
+                            onClick = { viewModel.removeScheduledAlarm(context, alarm.id) },
+                            containerColor = Color(0xFFEF4444),
+                            focusedContainerColor = Color(0xFFFCA5A5),
+                            contentColor = Color.White,
+                            focusedContentColor = Color.Black,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Text("Delete", fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (showAddAlarmDialog) {
         AddAlarmDialog(
@@ -538,6 +639,8 @@ fun MainScreenContent(
         )
     }
 }
+
+
 
 @Composable
 fun AddKeyMappingDialog(
